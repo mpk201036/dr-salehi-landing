@@ -6,6 +6,7 @@ import ServicesSection from '@/components/sections/ServicesSection'
 import EquipmentSection from '@/components/sections/EquipmentSection'
 import TestimonialsSection from '@/components/sections/TestimonialsSection'
 import InsuranceSection from '@/components/sections/InsuranceSection'
+import BookingSection from '@/components/sections/BookingSection'
 import FAQSection from '@/components/sections/FAQSection'
 import LocationSection from '@/components/sections/LocationSection'
 import FinalCTA from '@/components/sections/FinalCTA'
@@ -22,6 +23,7 @@ export default function Home() {
       <EquipmentSection />
       <TestimonialsSection />
       <InsuranceSection />
+      <BookingSection />
       <FAQSection />
       <LocationSection />
       <FinalCTA />

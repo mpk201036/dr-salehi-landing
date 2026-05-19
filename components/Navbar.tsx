@@ -8,6 +8,7 @@ const navLinks = [
   { label: 'خدمات', href: '#services' },
   { label: 'تجهیزات', href: '#equipment' },
   { label: 'نظرات', href: '#testimonials' },
+  { label: 'رزرو آنلاین', href: '#booking' },
   { label: 'مکان', href: '#location' },
 ]
 
