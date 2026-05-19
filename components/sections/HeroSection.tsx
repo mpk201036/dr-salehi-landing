@@ -27,16 +27,20 @@ export default function HeroSection() {
       const video = videoRef.current
       if (!video || cancelled) return
 
-      const waitForBuffer = (): Promise<void> => new Promise((resolve) => {
-        if (video.readyState >= 4) { resolve(); return }
-        const onCanPlay = () => { video.pause(); resolve() }
-        video.addEventListener('canplaythrough', onCanPlay, { once: true })
-        if (video.readyState >= 1) setTimeout(resolve, 800)
-      })
-
+      // ── Buffer the full video before setting up scrub ──────────────────────
+      // On mobile, seeking into unbuffered regions causes freezes.
+      // We play+pause silently to force the browser to buffer everything.
       const waitForMeta = (): Promise<void> => new Promise((resolve) => {
         if (video.readyState >= 1) { resolve(); return }
         video.addEventListener('loadedmetadata', () => resolve(), { once: true })
+      })
+
+      const waitForBuffer = (): Promise<void> => new Promise((resolve) => {
+        if (video.readyState >= 4) { resolve(); return }
+        video.addEventListener('canplaythrough', () => resolve(), { once: true })
+        // Hard fallback: if metadata is loaded but canplaythrough doesn't fire,
+        // proceed after 1.5 s so we don't block forever on slow connections
+        setTimeout(resolve, 1500)
       })
 
       await waitForMeta()
@@ -46,58 +50,85 @@ export default function HeroSection() {
       await waitForBuffer()
       if (cancelled) return
 
-      ctx = gsap.context(() => {
-        let targetTime = 0
-        const duration = video.duration || 1
-        const proxy = { t: 0 }
+      const duration = video.duration || 1
 
-        gsap.to(proxy, {
-          t: 1,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: '#hero',
-            start: 'top top',
-            end: '+=200%',
-            scrub: 0.3,
-            pin: true,
-            pinSpacing: true,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-            onUpdate: (self) => { targetTime = self.progress * duration },
-            onLeave: () => ScrollTrigger.refresh(),
-            onEnterBack: () => ScrollTrigger.refresh(),
+      // ── Shared mutable state ────────────────────────────────────────────────
+      // targetTime: where scroll says we SHOULD be (updated by GSAP)
+      // displayTime: where we currently ARE (lerped in rAF toward targetTime)
+      let targetTime = 0
+      let displayTime = 0
+
+      // Seek-gate: only write currentTime when the delta is worth a decode call.
+      // Threshold in seconds — smaller = more responsive, larger = fewer stalls.
+      const SEEK_THRESHOLD = 0.015          // ~0.4 frames at 24fps
+      // Lerp factor — lower = smoother easing, higher = snappier tracking.
+      // 0.10 on mobile (decoder is slower), 0.16 on desktop.
+      const isMobile = window.innerWidth < 768
+      const LERP = isMobile ? 0.10 : 0.16
+
+      // Last actual seek timestamp — throttle to at most one seek per 32ms (≈30fps)
+      // so we never flood the decoder pipeline.
+      let lastSeekAt = 0
+      const SEEK_INTERVAL_MS = isMobile ? 40 : 32
+
+      // ── rAF loop: smooth lerp + throttled seek ──────────────────────────────
+      const tick = (now: number) => {
+        if (cancelled) return
+
+        const diff = targetTime - displayTime
+
+        if (Math.abs(diff) > SEEK_THRESHOLD) {
+          displayTime += diff * LERP
+
+          // Only write to video.currentTime at the throttled rate
+          if (now - lastSeekAt >= SEEK_INTERVAL_MS) {
+            try {
+              video.currentTime = displayTime
+              lastSeekAt = now
+            } catch (_) {}
+          }
+        }
+
+        rafRef.current = requestAnimationFrame(tick)
+      }
+
+      // ── GSAP ScrollTrigger ──────────────────────────────────────────────────
+      ctx = gsap.context(() => {
+        ScrollTrigger.create({
+          trigger: '#hero',
+          start: 'top top',
+          end: '+=200%',
+          scrub: 1,              // 1s scrub lag — gives the decoder time to keep up
+          pin: true,
+          pinSpacing: true,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            // Only update targetTime — never seek from here directly
+            targetTime = self.progress * duration
           },
-          onUpdate: () => { targetTime = proxy.t * duration },
         })
 
-        let currentLerp = 0
-        const LERP = 0.18
-
-        const tick = () => {
-          if (cancelled) return
-          const diff = targetTime - currentLerp
-          if (Math.abs(diff) > 0.001) {
-            currentLerp += diff * LERP
-            try { video.currentTime = currentLerp } catch (_) {}
-          }
-          rafRef.current = requestAnimationFrame(tick)
-        }
-        rafRef.current = requestAnimationFrame(tick)
-
+        // CTA entrance + scroll-fade
         gsap.fromTo(
           ctaRef.current,
           { opacity: 0, y: 28 },
-          { opacity: 1, y: 0, duration: 1.1, ease: 'power2.out', delay: 0.5 }
+          { opacity: 1, y: 0, duration: 1.1, ease: 'power2.out', delay: 0.6 }
         )
         gsap.to(ctaRef.current, {
           opacity: 0, y: -20,
           scrollTrigger: { trigger: '#hero', start: '15% top', end: '45% top', scrub: true },
         })
+
+        // Scroll indicator fade
         gsap.to(scrollIndicatorRef.current, {
           opacity: 0,
           scrollTrigger: { trigger: '#hero', start: '5% top', end: '20% top', scrub: true },
         })
       })
+
+      // Start the rAF loop after ScrollTrigger is set up
+      rafRef.current = requestAnimationFrame(tick)
     }
 
     initGSAP()
@@ -110,20 +141,14 @@ export default function HeroSection() {
     }
   }, [])
 
-  // Device-aware video object position:
-  // Mobile portrait: shift up to keep subject visible in narrow viewport
-  // Tablet/Desktop: center
   const videoObjectPosition = device.isMobile && device.isPortrait
     ? 'center 15%'
     : device.isTablet
     ? 'center 25%'
     : 'center center'
 
-  // CTA bottom offset: respect iOS home indicator + extra breathing room on mobile
   const ctaBottom = device.isIOS
     ? 'calc(6rem + env(safe-area-inset-bottom, 20px))'
-    : device.isMobile
-    ? '5rem'
     : '5rem'
 
   const scrollIndicatorBottom = device.isIOS
