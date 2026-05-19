@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { doctor } from '@/lib/content'
 
 const navLinks = [
   { label: 'درباره دکتر', href: '#about' },
@@ -57,13 +56,13 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* CTA phone — hidden on very small, visible sm+ */}
+            {/* CTA booking — hidden on very small, visible sm+ */}
             <a
-              href={`tel:${doctor.phonePlain}`}
+              href="#booking"
               className="hidden sm:flex items-center gap-2 bg-cyan hover:bg-cyan-dark active:bg-cyan-dark text-navy font-semibold text-sm px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation"
             >
-              <PhoneIcon />
-              <span dir="ltr">{doctor.phone}</span>
+              <CalendarIcon />
+              <span>رزرو آنلاین</span>
             </a>
 
             {/* Mobile menu button — morphs to ECG on open */}
@@ -113,11 +112,12 @@ export default function Navbar() {
             </a>
           ))}
           <a
-            href={`tel:${doctor.phonePlain}`}
+            href="#booking"
+            onClick={() => setMenuOpen(false)}
             className="flex items-center justify-center gap-2 bg-cyan text-navy font-bold text-base px-6 py-3 rounded-full mt-2"
           >
-            <PhoneIcon />
-            <span dir="ltr">{doctor.phone}</span>
+            <CalendarIcon />
+            <span>رزرو آنلاین</span>
           </a>
         </div>
       </div>
@@ -125,10 +125,16 @@ export default function Navbar() {
   )
 }
 
-function PhoneIcon() {
+function CalendarIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.36 12 19.79 19.79 0 011.3 3.41 2 2 0 013.28 1.22h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 8.62a16 16 0 006.29 6.29l1.54-1.54a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="8" y1="15" x2="8" y2="15" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="12" y1="15" x2="12" y2="15" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="16" y1="15" x2="16" y2="15" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   )
 }
