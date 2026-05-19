@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useReveal } from '@/lib/hooks/useReveal'
+import { Calendar } from '@/components/ui/calendar'
 
 const CALENDLY_URL = 'https://calendly.com/alisalehi11/30min'
 
@@ -66,44 +67,53 @@ export default function BookingSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="glass rounded-3xl p-10 lg:p-16 shadow-2xl shadow-navy text-center"
+            className="glass rounded-3xl p-8 lg:p-12 shadow-2xl shadow-navy"
           >
-            {/* Calendar icon */}
-            <div className="flex justify-center mb-8">
-              <div className="relative w-20 h-20">
-                <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/20" />
-                <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/10" style={{ animationDelay: '0.6s' }} />
-                <div className="absolute inset-0 rounded-full bg-cyan/10 flex items-center justify-center">
-                  <CalendarIcon />
+            <div className="grid lg:grid-cols-2 gap-8 items-center">
+
+              {/* Left: Calendar widget */}
+              <Calendar />
+
+              {/* Right: CTA */}
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-right gap-6">
+                <div className="relative w-16 h-16">
+                  <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/20" />
+                  <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/10" style={{ animationDelay: '0.6s' }} />
+                  <div className="absolute inset-0 rounded-full bg-cyan/10 flex items-center justify-center">
+                    <CalendarIcon />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-clinical font-bold text-xl font-persian mb-2">نوبت آنلاین بگیرید</h3>
+                  <p className="text-silver/50 text-sm leading-relaxed font-persian">
+                    انتخاب روز و ساعت مناسب • تأییدیه فوری از طریق ایمیل
+                  </p>
+                </div>
+
+                <button
+                  onClick={openCalendly}
+                  className="inline-flex items-center gap-3 bg-cyan hover:bg-cyan-dark active:bg-cyan-dark text-navy font-bold text-base px-8 py-4 rounded-2xl shadow-xl shadow-cyan/30 transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
+                >
+                  <BookingIcon size={20} />
+                  رزرو آنلاین نوبت
+                </button>
+
+                <div className="flex flex-wrap justify-center lg:justify-start gap-4 text-silver/30 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
+                    شنبه تا چهارشنبه
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
+                    ۱۵:۳۰ تا ۱۹:۰۰
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
+                    پیروزی، تهران
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <p className="text-silver/50 text-sm mb-8 leading-relaxed">
-              انتخاب روز و ساعت مناسب • دریافت تأییدیه فوری از طریق ایمیل
-            </p>
-
-            <button
-              onClick={openCalendly}
-              className="inline-flex items-center gap-3 bg-cyan hover:bg-cyan-dark active:bg-cyan-dark text-navy font-bold text-lg sm:text-xl px-8 py-4 rounded-2xl shadow-xl shadow-cyan/30 transition-all duration-200 hover:scale-105 active:scale-95 touch-manipulation"
-            >
-              <BookingIcon size={22} />
-              رزرو آنلاین نوبت
-            </button>
-
-            <div className="flex flex-wrap justify-center gap-6 text-silver/30 text-xs mt-10">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
-                شنبه تا چهارشنبه
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
-                ۱۵:۳۰ تا ۱۹:۰۰
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
-                پیروزی، تهران
-              </span>
             </div>
           </motion.div>
 

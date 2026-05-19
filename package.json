@@ -9,13 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.2.10",
+    "gsap": "^3.12.5",
+    "lottie-react": "^2.4.0",
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
-    "gsap": "^3.12.5",
-    "framer-motion": "^11.2.10",
-    "lottie-react": "^2.4.0",
-    "clsx": "^2.1.1"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^20",
