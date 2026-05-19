@@ -107,13 +107,6 @@ export default function BookingSection() {
             </div>
           </motion.div>
 
-          <p className="reveal text-center text-silver/30 text-xs mt-6">
-            در صورت نیاز با{' '}
-            <a href="tel:77433062" className="text-cyan/60 hover:text-cyan transition-colors">
-              77433062
-            </a>{' '}
-            تماس بگیرید
-          </p>
         </div>
 
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan/20 to-transparent" />
