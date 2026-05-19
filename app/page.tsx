@@ -14,20 +14,24 @@ import Footer from '@/components/Footer'
 
 export default function Home() {
   return (
-    <main>
-      <Navbar />
-      <HeroSection />
-      <TrustSnapshot />
-      <AboutSection />
-      <ServicesSection />
-      <EquipmentSection />
-      <TestimonialsSection />
-      <InsuranceSection />
-      <BookingSection />
-      <FAQSection />
-      <LocationSection />
-      <FinalCTA />
+    <div className="relative">
+      {/* Main content sits above the fixed footer during scroll */}
+      <main className="relative z-10 bg-navy rounded-b-3xl shadow-2xl shadow-black/50">
+        <Navbar />
+        <HeroSection />
+        <TrustSnapshot />
+        <AboutSection />
+        <ServicesSection />
+        <EquipmentSection />
+        <TestimonialsSection />
+        <InsuranceSection />
+        <BookingSection />
+        <FAQSection />
+        <LocationSection />
+        <FinalCTA />
+      </main>
+      {/* Cinematic footer revealed as main scrolls away */}
       <Footer />
-    </main>
+    </div>
   )
 }
