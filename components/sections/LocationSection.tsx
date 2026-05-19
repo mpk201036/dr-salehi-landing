@@ -41,7 +41,7 @@ export default function LocationSection() {
                 تماس تلفنی
               </a>
               <a
-                href="https://maps.google.com/?q=35.692851443250284,51.48787487794235"
+                href="https://maps.google.com/?q=35.69286378678149,51.48707691770935"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 border border-silver/20 hover:border-cyan text-silver hover:text-cyan px-6 py-3 rounded-full text-sm transition-all duration-300"
@@ -58,7 +58,7 @@ export default function LocationSection() {
           <div className="reveal relative">
             <div className="glass rounded-2xl lg:rounded-3xl overflow-hidden h-64 sm:h-80 lg:h-96 relative">
               <iframe
-                src="https://maps.google.com/maps?q=35.692851443250284,51.48787487794235&z=17&output=embed&hl=fa"
+                src="https://maps.google.com/maps?q=35.69286378678149,51.48707691770935&z=17&output=embed&hl=fa"
                 width="100%"
                 height="100%"
                 style={{ border: 0, filter: 'invert(88%) hue-rotate(180deg) saturate(0.35) brightness(0.95)' }}
