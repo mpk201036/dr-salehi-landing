@@ -16,8 +16,6 @@ const cspDirectives = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  // Prevent browsers from interpreting files as a different MIME type
-  "require-trusted-types-for 'script'",
   // upgrade-insecure-requests breaks localhost (HTTP); only in production
   ...(!isDev ? ["upgrade-insecure-requests"] : []),
 ]
