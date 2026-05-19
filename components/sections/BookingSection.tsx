@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useReveal } from '@/lib/hooks/useReveal'
 
 const CALENDLY_IFRAME_URL =
-  'https://calendly.com/alisalehi11/30min?hide_gdpr_banner=1&background_color=0a1628&text_color=e2e8f0&primary_color=0EA5C0'
+  'https://calendly.com/alisalehi11/30min?hide_gdpr_banner=1&embed_type=Inline&embed_domain=charming-custard-8e17a4.netlify.app'
 
 export default function BookingSection() {
   const sectionRef = useRef<HTMLElement>(null)
@@ -46,6 +46,7 @@ export default function BookingSection() {
             height="700"
             frameBorder="0"
             title="رزرو نوبت آنلاین"
+            style={{ display: 'block', background: '#ffffff' }}
           />
         </motion.div>
 
