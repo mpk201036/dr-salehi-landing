@@ -1,0 +1,292 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0D1B2A;
+  --cyan: #0EA5C0;
+  --arterial: #EF3838;
+  --silver: #E6EEF6;
+}
+
+html {
+  /* scroll-behavior:smooth removed — GSAP ScrollTrigger manages all scroll;
+     native smooth-scroll fights scrub and causes segmented/jumpy playback */
+  height: -webkit-fill-available;
+}
+
+/* iOS Safari: 100svh = stable height that ignores the collapsing browser toolbar */
+#hero {
+  height: 100svh;
+  /* Promote the hero to its own GPU layer so currentTime updates
+     don't trigger main-thread layout/paint on surrounding elements */
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+@supports not (height: 100svh) {
+  #hero {
+    height: 100vh;
+  }
+}
+
+/* GSAP pin wrapper — force GPU layer */
+#hero > div {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Video element — own composited layer for smooth frame seeks */
+#hero video {
+  will-change: contents;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  /* Disable selection/callout on iOS long-press */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background-color: #0D1B2A;
+  color: #E6EEF6;
+  font-family: var(--font-persian), Tahoma, sans-serif;
+  direction: rtl;
+  overflow-x: hidden;
+  /* Prevent bounce/overscroll on iOS from exposing white edges */
+  overscroll-behavior: none;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Prevent horizontal scroll on all elements */
+* {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* Improve tap highlight on iOS */
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure inputs don't zoom on iOS (font-size >= 16px prevents auto-zoom) */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Persian/RTL base */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0D1B2A;
+}
+::-webkit-scrollbar-thumb {
+  background: #0EA5C0;
+  border-radius: 2px;
+}
+
+/* ECG line animation */
+.ecg-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: ecgDraw 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes ecgDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* CTA ECG border animation on hover */
+.btn-cta {
+  position: relative;
+  overflow: hidden;
+}
+.btn-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid #0EA5C0;
+  border-radius: inherit;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-cta:hover::before {
+  clip-path: inset(0 0% 0 0);
+}
+
+/* Glass card */
+.glass {
+  background: rgba(14, 165, 192, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(14, 165, 192, 0.15);
+}
+
+/* Section fade-up reveal (JS-driven) */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Cinemagraph shimmer overlay */
+.cinemagraph-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 60%,
+    rgba(13, 27, 42, 0.7) 100%
+  );
+}
+
+/* Pulse dot */
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.5; }
+}
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* Number counter font */
+.counter-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Frosted nav */
+.nav-frosted {
+  background: rgba(13, 27, 42, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(14, 165, 192, 0.12);
+}
+
+/* Service card hover line */
+.service-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(to left, #0EA5C0, #EF3838);
+  transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.service-card:hover::after {
+  width: 100%;
+}
+
+/* Testimonial quote mark */
+.quote-mark {
+  font-size: 5rem;
+  line-height: 0.5;
+  color: #0EA5C0;
+  opacity: 0.3;
+  font-family: Georgia, serif;
+}
+
+/* FAQ accordion */
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.faq-answer.open {
+  max-height: 300px;
+}
+
+/* Phone number digit reveal */
+@keyframes digitBrighten {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Map pulse */
+@keyframes mapPulse {
+  0% { transform: scale(1); opacity: 1; }
+  70% { transform: scale(2.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.map-pulse-ring {
+  animation: mapPulse 2s ease-out infinite;
+}
+
+/* Cinemagraph scan line — used in EquipmentSection */
+@keyframes scanLine {
+  0% { top: -1px; }
+  100% { top: 100%; }
+}
+.scan-line {
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(14, 165, 192, 0.6), transparent);
+  animation: scanLine 3s linear infinite;
+}
+
+/* Service icon animations */
+@keyframes ecgTrace {
+  0% { stroke-dashoffset: 60; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.15); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.08); }
+  56% { transform: scale(1); }
+}
+@keyframes orbSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes flowDash {
+  0% { stroke-dashoffset: 40; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes scanRing {
+  0% { r: 4; opacity: 1; }
+  100% { r: 14; opacity: 0; }
+}
+@keyframes dropFill {
+  0% { transform: translateY(4px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes chestRipple {
+  0% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes clockHand {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes shieldPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+@keyframes lipidFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes glucoseLine {
+  0% { stroke-dashoffset: 30; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes clipWrite {
+  0% { stroke-dashoffset: 50; }
+  100% { stroke-dashoffset: 0; }
+}
