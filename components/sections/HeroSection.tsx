@@ -4,18 +4,19 @@ import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { doctor, headline } from '@/lib/content'
 import PhoneIcon from '@/components/ui/PhoneIcon'
+import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
 export default function HeroSection() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const ctaRef = useRef<HTMLDivElement>(null)
   const scrollIndicatorRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
+  const device = useDeviceInfo()
 
   useEffect(() => {
     let cancelled = false
     let ctx: { revert: () => void } | null = null
 
-    // Disable smooth scroll while GSAP is active — they fight each other
     document.documentElement.style.scrollBehavior = 'auto'
 
     const initGSAP = async () => {
@@ -26,18 +27,13 @@ export default function HeroSection() {
       const video = videoRef.current
       if (!video || cancelled) return
 
-      // Force the video to fully buffer before setting up scrub.
-      // On mobile, partial buffer causes frame-seek stalls.
       const waitForBuffer = (): Promise<void> => new Promise((resolve) => {
         if (video.readyState >= 4) { resolve(); return }
-        // Preload by playing then immediately pausing — forces browser to buffer
         const onCanPlay = () => { video.pause(); resolve() }
         video.addEventListener('canplaythrough', onCanPlay, { once: true })
-        // Fallback: readyState check — if metadata loaded, proceed anyway after 800ms
         if (video.readyState >= 1) setTimeout(resolve, 800)
       })
 
-      // Ensure metadata is loaded first
       const waitForMeta = (): Promise<void> => new Promise((resolve) => {
         if (video.readyState >= 1) { resolve(); return }
         video.addEventListener('loadedmetadata', () => resolve(), { once: true })
@@ -46,17 +42,13 @@ export default function HeroSection() {
       await waitForMeta()
       if (cancelled) return
 
-      // Silently attempt to preload the whole video
       video.play().then(() => { video.pause(); video.currentTime = 0 }).catch(() => {})
       await waitForBuffer()
       if (cancelled) return
 
       ctx = gsap.context(() => {
-        // Smooth target time — we lerp to this in a rAF loop
         let targetTime = 0
         const duration = video.duration || 1
-
-        // GSAP drives a plain JS object (not video directly) — avoids decode stalls
         const proxy = { t: 0 }
 
         gsap.to(proxy, {
@@ -66,67 +58,44 @@ export default function HeroSection() {
             trigger: '#hero',
             start: 'top top',
             end: '+=200%',
-            scrub: 0.3,          // small scrub lag = butter-smooth, matches finger 1:1
+            scrub: 0.3,
             pin: true,
             pinSpacing: true,
             anticipatePin: 1,
             invalidateOnRefresh: true,
-            onUpdate: (self) => {
-              targetTime = self.progress * duration
-            },
+            onUpdate: (self) => { targetTime = self.progress * duration },
             onLeave: () => ScrollTrigger.refresh(),
             onEnterBack: () => ScrollTrigger.refresh(),
           },
-          onUpdate: () => {
-            targetTime = proxy.t * duration
-          },
+          onUpdate: () => { targetTime = proxy.t * duration },
         })
 
-        // rAF loop: lerp video.currentTime toward targetTime every frame
-        // This decouples the scroll event from the decode request,
-        // letting the browser decode at its own pace without janking the scroll.
         let currentLerp = 0
-        const LERP = 0.18 // lower = smoother, higher = more responsive
+        const LERP = 0.18
 
         const tick = () => {
           if (cancelled) return
           const diff = targetTime - currentLerp
-          // Skip tiny updates to avoid unnecessary decode calls
           if (Math.abs(diff) > 0.001) {
             currentLerp += diff * LERP
-            try {
-              video.currentTime = currentLerp
-            } catch (_) {}
+            try { video.currentTime = currentLerp } catch (_) {}
           }
           rafRef.current = requestAnimationFrame(tick)
         }
         rafRef.current = requestAnimationFrame(tick)
 
-        // CTA: entrance animation then fade on scroll
         gsap.fromTo(
           ctaRef.current,
           { opacity: 0, y: 28 },
           { opacity: 1, y: 0, duration: 1.1, ease: 'power2.out', delay: 0.5 }
         )
         gsap.to(ctaRef.current, {
-          opacity: 0,
-          y: -20,
-          scrollTrigger: {
-            trigger: '#hero',
-            start: '15% top',
-            end: '45% top',
-            scrub: true,
-          },
+          opacity: 0, y: -20,
+          scrollTrigger: { trigger: '#hero', start: '15% top', end: '45% top', scrub: true },
         })
-
         gsap.to(scrollIndicatorRef.current, {
           opacity: 0,
-          scrollTrigger: {
-            trigger: '#hero',
-            start: '5% top',
-            end: '20% top',
-            scrub: true,
-          },
+          scrollTrigger: { trigger: '#hero', start: '5% top', end: '20% top', scrub: true },
         })
       })
     }
@@ -141,10 +110,29 @@ export default function HeroSection() {
     }
   }, [])
 
+  // Device-aware video object position:
+  // Mobile portrait: shift up to keep subject visible in narrow viewport
+  // Tablet/Desktop: center
+  const videoObjectPosition = device.isMobile && device.isPortrait
+    ? 'center 15%'
+    : device.isTablet
+    ? 'center 25%'
+    : 'center center'
+
+  // CTA bottom offset: respect iOS home indicator + extra breathing room on mobile
+  const ctaBottom = device.isIOS
+    ? 'calc(6rem + env(safe-area-inset-bottom, 20px))'
+    : device.isMobile
+    ? '5rem'
+    : '5rem'
+
+  const scrollIndicatorBottom = device.isIOS
+    ? 'calc(1.5rem + env(safe-area-inset-bottom, 20px))'
+    : '1.5rem'
+
   return (
     <section id="hero" className="relative">
-      {/* Inner wrapper height must match section — set via CSS for svh/fill-available support */}
-      <div className="relative w-full overflow-hidden" style={{ willChange: 'transform' }}>
+      <div className="hero-inner relative w-full" style={{ willChange: 'transform' }}>
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -155,8 +143,7 @@ export default function HeroSection() {
           preload="auto"
           {...{ disablePictureInPicture: true, 'x-webkit-airplay': 'deny' }}
           style={{
-            // On portrait mobile, shift subject into frame
-            objectPosition: 'center 20%',
+            objectPosition: videoObjectPosition,
             willChange: 'contents',
             WebkitUserSelect: 'none',
           }}
@@ -164,17 +151,14 @@ export default function HeroSection() {
 
         {/* Edge vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(13,27,42,0.55)_100%)] pointer-events-none" />
-        {/* Seamless bottom fade */}
+        {/* Bottom fade */}
         <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-[#0F2132] via-[#0F2132]/70 to-transparent pointer-events-none" />
 
-        {/* CTA overlay — safe-area aware bottom on iOS */}
+        {/* CTA overlay */}
         <div
           ref={ctaRef}
           className="absolute left-4 sm:left-8 lg:left-16 opacity-0 flex flex-col items-start gap-4 max-w-[calc(100vw-2rem)] sm:max-w-none"
-          style={{
-            willChange: 'opacity, transform',
-            bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
-          }}
+          style={{ willChange: 'opacity, transform', bottom: ctaBottom }}
         >
           <div>
             <p className="text-silver/50 text-xs tracking-widest uppercase font-sans mb-1">
@@ -211,14 +195,11 @@ export default function HeroSection() {
           </svg>
         </div>
 
-        {/* Scroll indicator — safe-area aware */}
+        {/* Scroll indicator */}
         <div
           ref={scrollIndicatorRef}
           className="absolute right-1/2 translate-x-1/2 flex flex-col items-center gap-2 text-silver/40"
-          style={{
-            willChange: 'opacity',
-            bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
-          }}
+          style={{ willChange: 'opacity', bottom: scrollIndicatorBottom }}
         >
           <span className="text-xs tracking-widest font-persian">اسکرول</span>
           <div className="w-px h-8 bg-gradient-to-b from-silver/40 to-transparent" />

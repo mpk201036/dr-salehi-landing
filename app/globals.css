@@ -29,17 +29,27 @@ html {
   }
 }
 
-/* GSAP pin wrapper — must match the section height exactly */
-#hero > div {
+/* GSAP pin wrapper — must match the section height exactly on all devices */
+#hero > div,
+.hero-inner {
   height: 100svh;
   will-change: transform;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
 @supports not (height: 100svh) {
-  #hero > div {
+  #hero > div,
+  .hero-inner {
     height: 100vh;
     height: -webkit-fill-available;
+  }
+}
+
+/* Mobile portrait: ensure no overflow clips the video */
+@media (max-width: 767px) {
+  #hero,
+  .hero-inner {
+    overflow: hidden;
   }
 }
 
