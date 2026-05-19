@@ -29,10 +29,11 @@ export default function InsuranceSection() {
           {/* Insurance card */}
           <div className="reveal flex-1 flex justify-center">
             <div className="glass rounded-3xl p-8 flex flex-col items-center gap-6 w-full max-w-sm hover:border-cyan/30 transition-all duration-500 group">
-              {/* Shield icon with pulse */}
-              <div className="relative">
-                <div className="absolute -inset-4 rounded-full border border-cyan/20 group-hover:border-cyan/40 transition-colors animate-pulse-slow" />
-                <div className="w-20 h-20 rounded-full bg-cyan/10 flex items-center justify-center">
+              {/* Shield icon with pulse rings */}
+              <div className="relative flex items-center justify-center w-24 h-24">
+                <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/15" />
+                <div className="map-pulse-ring absolute inset-0 rounded-full bg-cyan/10" style={{ animationDelay: '0.7s' }} />
+                <div className="w-20 h-20 rounded-full bg-cyan/10 flex items-center justify-center relative z-10">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0EA5C0" strokeWidth="1.5">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     <polyline points="9 12 11 14 15 10" />
