@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { doctor } from '@/lib/content'
 
 const navLinks = [
   { label: 'درباره دکتر', href: '#about' },
