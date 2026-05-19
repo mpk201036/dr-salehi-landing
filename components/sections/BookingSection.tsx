@@ -98,7 +98,7 @@ export default function BookingSection() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
-                ۱۶:۴۵ تا ۲۰:۰۰
+                ۱۵:۳۰ تا ۱۹:۰۰
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
@@ -109,8 +109,8 @@ export default function BookingSection() {
 
           <p className="reveal text-center text-silver/30 text-xs mt-6">
             در صورت نیاز با{' '}
-            <a href="tel:02177433062" className="text-cyan/60 hover:text-cyan transition-colors">
-              ۰۲۱ ۷۷۴۳ ۳۰۶۲
+            <a href="tel:77433062" className="text-cyan/60 hover:text-cyan transition-colors">
+              77433062
             </a>{' '}
             تماس بگیرید
           </p>
