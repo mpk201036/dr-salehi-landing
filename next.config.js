@@ -4,15 +4,15 @@ const isDev = process.env.NODE_ENV === 'development'
 
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "frame-src https://www.google.com https://maps.google.com",
-  "img-src 'self' data: blob:",
+  "frame-src https://www.google.com https://maps.google.com https://calendly.com",
+  "img-src 'self' data: blob: https://calendly.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com",
   // Dev: allow Next.js HMR websocket on localhost; prod: self only
   isDev
-    ? "connect-src 'self' ws://localhost:* wss://localhost:*"
-    : "connect-src 'self'",
+    ? "connect-src 'self' ws://localhost:* wss://localhost:* https://calendly.com"
+    : "connect-src 'self' https://calendly.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
