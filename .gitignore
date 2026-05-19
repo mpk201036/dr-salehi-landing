@@ -39,3 +39,8 @@ next-env.d.ts
 # Large backup files
 public/hero-sequence/hero_original_backup.mp4
 dr-ali-salehi-final-build-journal.pdf
+
+# Local Netlify folder
+.netlify
+pentest-report-dr-salehi.pdf
+public/hero-sequence/hero_sparse_backup.mp4
