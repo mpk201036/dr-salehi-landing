@@ -46,29 +46,39 @@ export default function HeroSection() {
       if (cancelled) return
 
       const duration = video.duration || 1
-
-      // Direct currentTime mapping — no lerp needed because the video has
-      // a keyframe every 3 frames so every seek resolves in ≤2 frame decode steps
       let lastProgress = -1
       const isMobile = window.innerWidth < 768
+
+      // Returns the furthest second that has been downloaded into the buffer.
+      // Seeking beyond this causes a network stall — we clamp to it instead.
+      const bufferedEnd = () => {
+        if (!video.buffered.length) return 0
+        let end = 0
+        for (let i = 0; i < video.buffered.length; i++) {
+          if (video.buffered.end(i) > end) end = video.buffered.end(i)
+        }
+        return end
+      }
 
       ctx = gsap.context(() => {
         ScrollTrigger.create({
           trigger: '#hero',
           start: 'top top',
           end: '+=200%',
-          // scrub: true gives 1:1 finger tracking with no added lag
           scrub: isMobile ? 0.5 : true,
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
-            // Skip if progress hasn't changed meaningfully
             if (Math.abs(self.progress - lastProgress) < 0.001) return
             lastProgress = self.progress
             const target = self.progress * duration
-            try { video.currentTime = target } catch (_) {}
+            // Only seek if the target is within what's already buffered.
+            // This prevents freezing on slow connections.
+            const safeTarget = Math.min(target, bufferedEnd() - 0.1)
+            if (safeTarget < 0) return
+            try { video.currentTime = safeTarget } catch (_) {}
           },
         })
 
