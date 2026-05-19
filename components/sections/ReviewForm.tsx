@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const NAME_MAX = 80
+const TEXT_MAX = 1000
+
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const [hover, setHover] = useState(0)
   return (
@@ -32,21 +35,58 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
   )
 }
 
+type SubmitState = 'idle' | 'loading' | 'success' | 'duplicate' | 'error'
+
 export default function ReviewForm() {
   const [name, setName] = useState('')
   const [text, setText] = useState('')
   const [rating, setRating] = useState(5)
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [state, setState] = useState<SubmitState>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !text.trim() || rating === 0) return
-    setLoading(true)
-    // Simulate async submission (no backend wired — can be extended)
-    await new Promise((r) => setTimeout(r, 800))
-    setLoading(false)
-    setSubmitted(true)
+    const trimName = name.trim()
+    const trimText = text.trim()
+    if (!trimName || !trimText || rating === 0) return
+
+    setState('loading')
+    setErrorMsg('')
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimName, text: trimText, rating }),
+      })
+
+      if (res.ok) {
+        setState('success')
+        return
+      }
+
+      const data = await res.json().catch(() => ({}))
+      const msg: string = data?.error || 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
+
+      if (res.status === 429) {
+        setState('duplicate')
+        setErrorMsg(msg)
+      } else {
+        setState('error')
+        setErrorMsg(msg)
+      }
+    } catch {
+      setState('error')
+      setErrorMsg('اتصال به سرور برقرار نشد. لطفاً دوباره تلاش کنید.')
+    }
+  }
+
+  const resetForm = () => {
+    setState('idle')
+    setErrorMsg('')
+    setName('')
+    setText('')
+    setRating(5)
   }
 
   return (
@@ -63,7 +103,7 @@ export default function ReviewForm() {
       </div>
 
       <AnimatePresence mode="wait">
-        {submitted ? (
+        {state === 'success' && (
           <motion.div
             key="thanks"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -85,14 +125,30 @@ export default function ReviewForm() {
             </motion.div>
             <p className="text-clinical font-semibold text-lg font-persian">ممنون از نظر شما!</p>
             <p className="text-silver/60 text-sm font-persian">نظرتان ثبت شد و بعد از بررسی نمایش داده خواهد شد.</p>
-            <button
-              onClick={() => { setSubmitted(false); setName(''); setText(''); setRating(5) }}
-              className="mt-2 text-cyan text-sm hover:text-cyan-light transition-colors"
-            >
-              ثبت نظر جدید
-            </button>
           </motion.div>
-        ) : (
+        )}
+
+        {state === 'duplicate' && (
+          <motion.div
+            key="duplicate"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center gap-4 py-8 text-center"
+          >
+            <div className="w-16 h-16 rounded-full bg-arterial/10 flex items-center justify-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF3838" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+            </div>
+            <p className="text-clinical font-semibold text-lg font-persian">نظر قبلاً ثبت شده</p>
+            <p className="text-silver/60 text-sm font-persian leading-relaxed max-w-xs">{errorMsg}</p>
+          </motion.div>
+        )}
+
+        {(state === 'idle' || state === 'loading' || state === 'error') && (
           <motion.form
             key="form"
             onSubmit={handleSubmit}
@@ -106,11 +162,12 @@ export default function ReviewForm() {
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.slice(0, NAME_MAX))}
                 required
+                maxLength={NAME_MAX}
                 placeholder="مثال: علی رضایی"
                 className="w-full bg-navy/60 border border-silver/10 focus:border-cyan/50 rounded-xl px-4 py-3 text-silver outline-none transition-colors placeholder:text-silver/25"
-      style={{ fontSize: '16px' }}  /* prevents iOS auto-zoom on focus */
+                style={{ fontSize: '16px' }}
               />
             </div>
 
@@ -120,47 +177,44 @@ export default function ReviewForm() {
               <StarPicker value={rating} onChange={setRating} />
             </div>
 
-            {/* Would recommend */}
-            <div className="flex items-center gap-3">
-              <label className="text-silver/60 text-xs">این دکتر را توصیه می‌کنید؟</label>
-              <div className="flex gap-2">
-                {[{ label: 'بله', value: true }, { label: 'خیر', value: false }].map(({ label }) => (
-                  <span
-                    key={label}
-                    className={`px-4 py-1.5 rounded-full text-xs border cursor-pointer transition-all ${
-                      label === 'بله'
-                        ? 'border-cyan/40 text-cyan bg-cyan/10'
-                        : 'border-silver/15 text-silver/40'
-                    }`}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-
             {/* Text */}
             <div>
-              <label className="block text-silver/60 text-xs mb-1.5">نظر شما</label>
+              <label className="block text-silver/60 text-xs mb-1.5">
+                نظر شما
+                <span className="mr-2 text-silver/30">{text.length}/{TEXT_MAX}</span>
+              </label>
               <textarea
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => setText(e.target.value.slice(0, TEXT_MAX))}
                 required
+                minLength={10}
+                maxLength={TEXT_MAX}
                 rows={4}
                 placeholder="تجربه خود از مراجعه به دکتر صالحی را بنویسید..."
                 className="w-full bg-navy/60 border border-silver/10 focus:border-cyan/50 rounded-xl px-4 py-3 text-silver outline-none transition-colors resize-none placeholder:text-silver/25"
-      style={{ fontSize: '16px' }}  /* prevents iOS auto-zoom on focus */
+                style={{ fontSize: '16px' }}
               />
             </div>
 
+            {/* Server-side error banner */}
+            {state === 'error' && errorMsg && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-arterial text-xs text-center bg-arterial/10 rounded-lg px-3 py-2"
+              >
+                {errorMsg}
+              </motion.p>
+            )}
+
             <motion.button
               type="submit"
-              disabled={loading || !name.trim() || !text.trim()}
+              disabled={state === 'loading' || !name.trim() || !text.trim() || text.trim().length < 10}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-full bg-cyan hover:bg-cyan-dark disabled:bg-cyan/30 disabled:cursor-not-allowed text-navy font-bold py-3.5 rounded-xl text-base transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {state === 'loading' ? (
                 <>
                   <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
@@ -177,7 +231,7 @@ export default function ReviewForm() {
               )}
             </motion.button>
 
-            <p className="text-silver/30 text-xs text-center">نظرات بعد از بررسی نمایش داده می‌شوند</p>
+            <p className="text-silver/30 text-xs text-center">نظرات بعد از بررسی نمایش داده می‌شوند • هر کاربر فقط یک نظر در روز</p>
           </motion.form>
         )}
       </AnimatePresence>
