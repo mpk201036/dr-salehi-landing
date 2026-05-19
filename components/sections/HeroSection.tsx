@@ -143,8 +143,8 @@ export default function HeroSection() {
 
   return (
     <section id="hero" className="relative">
-      {/* will-change:transform tells the GPU to promote this layer — avoids repaint jank */}
-      <div className="w-full h-full overflow-hidden" style={{ willChange: 'transform' }}>
+      {/* Inner wrapper height must match section — set via CSS for svh/fill-available support */}
+      <div className="relative w-full overflow-hidden" style={{ willChange: 'transform' }}>
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -153,27 +153,28 @@ export default function HeroSection() {
           muted
           playsInline
           preload="auto"
-          // disablePictureInPicture and x-webkit-airplay stop iOS from interrupting
           {...{ disablePictureInPicture: true, 'x-webkit-airplay': 'deny' }}
           style={{
-            objectPosition: 'center center',
-            // GPU-composited layer — prevents layout recalculation on currentTime change
+            // On portrait mobile, shift subject into frame
+            objectPosition: 'center 20%',
             willChange: 'contents',
-            // Disable iOS native controls that can interfere
             WebkitUserSelect: 'none',
           }}
         />
 
         {/* Edge vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(13,27,42,0.55)_100%)] pointer-events-none" />
-        {/* Seamless bottom fade into TrustSnapshot */}
+        {/* Seamless bottom fade */}
         <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-[#0F2132] via-[#0F2132]/70 to-transparent pointer-events-none" />
 
-        {/* CTA overlay */}
+        {/* CTA overlay — safe-area aware bottom on iOS */}
         <div
           ref={ctaRef}
-          className="absolute bottom-20 left-4 sm:left-8 lg:left-16 opacity-0 flex flex-col items-start gap-4 max-w-[calc(100vw-2rem)] sm:max-w-none"
-          style={{ willChange: 'opacity, transform' }}
+          className="absolute left-4 sm:left-8 lg:left-16 opacity-0 flex flex-col items-start gap-4 max-w-[calc(100vw-2rem)] sm:max-w-none"
+          style={{
+            willChange: 'opacity, transform',
+            bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+          }}
         >
           <div>
             <p className="text-silver/50 text-xs tracking-widest uppercase font-sans mb-1">
@@ -210,11 +211,14 @@ export default function HeroSection() {
           </svg>
         </div>
 
-        {/* Scroll indicator */}
+        {/* Scroll indicator — safe-area aware */}
         <div
           ref={scrollIndicatorRef}
-          className="absolute bottom-6 right-1/2 translate-x-1/2 flex flex-col items-center gap-2 text-silver/40"
-          style={{ willChange: 'opacity' }}
+          className="absolute right-1/2 translate-x-1/2 flex flex-col items-center gap-2 text-silver/40"
+          style={{
+            willChange: 'opacity',
+            bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+          }}
         >
           <span className="text-xs tracking-widest font-persian">اسکرول</span>
           <div className="w-px h-8 bg-gradient-to-b from-silver/40 to-transparent" />

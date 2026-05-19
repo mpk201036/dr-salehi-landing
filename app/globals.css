@@ -18,8 +18,6 @@ html {
 /* iOS Safari: 100svh = stable height that ignores the collapsing browser toolbar */
 #hero {
   height: 100svh;
-  /* Promote the hero to its own GPU layer so currentTime updates
-     don't trigger main-thread layout/paint on surrounding elements */
   will-change: transform;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
@@ -27,14 +25,22 @@ html {
 @supports not (height: 100svh) {
   #hero {
     height: 100vh;
+    height: -webkit-fill-available;
   }
 }
 
-/* GSAP pin wrapper — force GPU layer */
+/* GSAP pin wrapper — must match the section height exactly */
 #hero > div {
+  height: 100svh;
   will-change: transform;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+@supports not (height: 100svh) {
+  #hero > div {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
 }
 
 /* Video element — own composited layer for smooth frame seeks */
