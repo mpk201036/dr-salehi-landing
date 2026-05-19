@@ -16,7 +16,9 @@ export default function HeroSection() {
     let cancelled = false
     let ctx: { revert: () => void } | null = null
 
+    window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
+    if (videoRef.current) videoRef.current.currentTime = 0
 
     const initGSAP = async () => {
       const { gsap } = await import('gsap')

@@ -77,7 +77,17 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="font-persian antialiased">{children}</body>
+      <body className="font-persian antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+              window.scrollTo(0, 0);
+            `,
+          }}
+        />
+        {children}
+      </body>
     </html>
   )
 }
