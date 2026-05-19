@@ -48,22 +48,26 @@ const STYLES = `
 
 .cf-giant {
   font-size: clamp(80px, 22vw, 320px);
-  line-height: 0.78;
+  line-height: 1.1;
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   color: transparent;
   -webkit-text-stroke: 1px rgba(14,165,192,0.07);
   background: linear-gradient(180deg, rgba(14,165,192,0.12) 0%, transparent 55%);
   -webkit-background-clip: text;
   background-clip: text;
+  font-family: var(--font-persian), Tahoma, sans-serif;
 }
 
 .cf-glow {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(230,238,246,0.45) 100%);
+  background: linear-gradient(180deg, #ffffff 0%, rgba(230,238,246,0.55) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   filter: drop-shadow(0 0 28px rgba(14,165,192,0.25));
+  line-height: 1.3;
+  padding-bottom: 0.1em;
+  display: inline-block;
 }
 
 .cf-pill {
@@ -125,7 +129,7 @@ MagneticButton.displayName = 'MagneticButton'
 
 // ─── Marquee content ──────────────────────────────────────────────────────────
 const MarqueeItem = () => (
-  <div className="flex items-center gap-10 px-6 font-sans">
+  <div className="flex items-center gap-10 px-6 font-persian">
     <span>متخصص قلب و عروق</span>
     <span className="text-cyan/50">✦</span>
     <span>بیش از ۴۰ سال تجربه</span>
@@ -188,7 +192,7 @@ export function CinematicFooter() {
         className="relative h-screen w-full"
         style={{ clipPath: 'polygon(0% 0, 100% 0%, 100% 100%, 0 100%)' }}
       >
-        <footer className="fixed bottom-0 left-0 h-screen w-full flex flex-col justify-between overflow-hidden bg-navy text-silver">
+        <footer className="fixed bottom-0 left-0 h-screen w-full flex flex-col justify-between bg-navy text-silver" style={{ overflow: 'hidden' }}>
 
           {/* Aurora glow */}
           <div className="cf-breathe absolute left-1/2 top-1/2 h-[55vh] w-[75vw] rounded-[50%] blur-[90px] pointer-events-none z-0"
@@ -204,7 +208,7 @@ export function CinematicFooter() {
 
           {/* Marquee */}
           <div className="absolute top-10 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10 -rotate-1 scale-105">
-            <div className="cf-marquee flex w-max text-xs font-bold tracking-[0.25em] text-silver/30 uppercase">
+            <div className="cf-marquee flex w-max text-xs font-bold text-silver/30">
               <MarqueeItem /><MarqueeItem />
             </div>
           </div>
@@ -212,8 +216,8 @@ export function CinematicFooter() {
           {/* Main content */}
           <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 mt-16 w-full max-w-5xl mx-auto">
 
-            <h2 ref={headingRef} className="cf-glow text-4xl sm:text-6xl md:text-8xl font-black tracking-tighter mb-10 text-center font-persian">
-              نوبت بگیرید
+            <h2 ref={headingRef} className="text-4xl sm:text-6xl md:text-8xl font-black mb-10 text-center font-persian" style={{ overflow: 'visible' }}>
+              <span className="cf-glow">نوبت بگیرید</span>
             </h2>
 
             <div ref={linksRef} className="flex flex-col items-center gap-5 w-full">
@@ -259,15 +263,15 @@ export function CinematicFooter() {
           <div ref={bottomRef} className="relative z-20 w-full pb-6 px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-4">
 
             {/* Copyright */}
-            <p className="text-silver/20 text-[10px] font-semibold tracking-widest uppercase order-2 md:order-1 font-sans">
+            <p className="text-silver/20 text-xs font-medium order-2 md:order-1 font-persian">
               © ۱۴۰۴ دکتر علی صالحی — تمام حقوق محفوظ است
             </p>
 
             {/* Made with love */}
             <div className="cf-pill px-5 py-2.5 rounded-full flex items-center gap-2 order-1 md:order-2">
-              <span className="text-silver/30 text-[10px] font-bold uppercase tracking-widest font-sans">ساخته شده با</span>
+              <span className="text-silver/30 text-xs font-medium font-persian">ساخته شده با</span>
               <span className="cf-heartbeat text-arterial text-sm">❤</span>
-              <span className="text-silver/30 text-[10px] font-bold uppercase tracking-widest font-sans">برای سلامت شما</span>
+              <span className="text-silver/30 text-xs font-medium font-persian">برای سلامت شما</span>
             </div>
 
             {/* Back to top */}
