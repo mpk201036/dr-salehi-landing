@@ -211,16 +211,15 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-36 left-0 w-full overflow-hidden bg-navy/70 backdrop-blur-md py-5 z-10"
-            style={{ perspective: '900px' }}>
-            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d' }}>
+          <div className="absolute top-36 left-0 w-full z-10" style={{ perspective: '900px' }}>
+            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d', padding: '1.25rem 0' }}>
               <div className="cf-marquee flex w-max text-sm font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
                 <MarqueeItem /><MarqueeItem />
               </div>
             </div>
-            {/* Edge fades */}
-            <div className="absolute inset-y-0 left-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(90deg, rgba(15,33,50,0.95) 0%, transparent 100%)' }} />
-            <div className="absolute inset-y-0 right-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(270deg, rgba(15,33,50,0.95) 0%, transparent 100%)' }} />
+            {/* Edge fades matched to navy background */}
+            <div className="absolute inset-y-0 left-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(90deg, #0F2132 0%, transparent 100%)' }} />
+            <div className="absolute inset-y-0 right-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(270deg, #0F2132 0%, transparent 100%)' }} />
           </div>
 
           {/* Main content */}
