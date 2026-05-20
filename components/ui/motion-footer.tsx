@@ -17,10 +17,6 @@ const STYLES = `
   0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.5; }
   100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.9; }
 }
-@keyframes footer-scroll-marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
 @keyframes footer-heartbeat {
   0%,100% { transform: scale(1);   }
   15%,45% { transform: scale(1.35); }
@@ -33,7 +29,7 @@ const STYLES = `
 }
 
 .cf-breathe    { animation: footer-breathe 8s ease-in-out infinite alternate; }
-.cf-marquee    { animation: footer-scroll-marquee 38s linear infinite; }
+.cf-marquee    { display: flex; flex-wrap: nowrap; width: max-content; white-space: nowrap; }
 .cf-heartbeat  { animation: footer-heartbeat 2s cubic-bezier(0.25,1,0.5,1) infinite; }
 .cf-pulse-ring { animation: footer-pulse-ring 2s ease-out infinite; }
 
@@ -128,28 +124,84 @@ const MagneticButton = React.forwardRef<HTMLElement, MagneticProps>(
 MagneticButton.displayName = 'MagneticButton'
 
 // ─── Marquee content ──────────────────────────────────────────────────────────
-const MarqueeItem = () => (
-  <div className="flex items-center gap-10 px-6 font-persian whitespace-nowrap shrink-0">
-    <span>متخصص قلب و عروق</span>
-    <span className="text-cyan/50">✦</span>
-    <span>بیش از ۴۰ سال تجربه</span>
-    <span className="text-cyan/50">✦</span>
-    <span>اکوکاردیوگرافی</span>
-    <span className="text-cyan/50">✦</span>
-    <span>نوار قلب</span>
-    <span className="text-cyan/50">✦</span>
-    <span>تست ورزش</span>
-    <span className="text-cyan/50">✦</span>
-    <span>هولتر مانیتورینگ</span>
-    <span className="text-cyan/50">✦</span>
-    <span>فشار خون</span>
-    <span className="text-cyan/50">✦</span>
-    <span>هولتر فشار خون ۲۴ ساعته</span>
-    <span className="text-cyan/50">✦</span>
-    <span>رزرو آنلاین نوبت</span>
-    <span className="text-cyan/50">✦</span>
-  </div>
-)
+const MARQUEE_ITEMS = [
+  'متخصص قلب و عروق',  '✦',
+  'بیش از ۴۰ سال تجربه', '✦',
+  'اکوکاردیوگرافی',     '✦',
+  'نوار قلب',           '✦',
+  'تست ورزش',           '✦',
+  'هولتر مانیتورینگ',   '✦',
+  'فشار خون',           '✦',
+  'هولتر فشار خون ۲۴ ساعته', '✦',
+  'رزرو آنلاین نوبت',   '✦',
+]
+
+function BlurMarquee() {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const rafRef   = useRef<number | null>(null)
+  const offsetRef = useRef(0)
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+
+    // Two copies — when first copy scrolls fully left, reset seamlessly
+    const halfWidth = () => track.scrollWidth / 2
+    const PX_PER_MS = 0.045 // scroll speed
+    let last = performance.now()
+
+    const tick = (now: number) => {
+      const dt = now - last
+      last = now
+      offsetRef.current += PX_PER_MS * dt
+      if (offsetRef.current >= halfWidth()) offsetRef.current -= halfWidth()
+      track.style.transform = `translateX(${-offsetRef.current}px)`
+
+      // Per-span blur based on distance from viewport centre
+      const cx = window.innerWidth / 2
+      const spans = track.querySelectorAll<HTMLSpanElement>('span[data-mq]')
+      spans.forEach((span) => {
+        const r = span.getBoundingClientRect()
+        const itemCx = r.left + r.width / 2
+        const dist = Math.abs(itemCx - cx) / (cx || 1)       // 0 = centre, 1 = edge
+        const blur = Math.pow(dist, 1.6) * 7                  // max ~7px at edges
+        const opacity = 0.18 + (1 - Math.pow(dist, 1.2)) * 0.52 // 0.18 → 0.70
+        span.style.filter  = `blur(${blur.toFixed(2)}px)`
+        span.style.opacity = opacity.toFixed(3)
+      })
+
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
+  }, [])
+
+  const row = MARQUEE_ITEMS.map((item, i) => {
+    const isDot = item === '✦'
+    return (
+      <span
+        key={i}
+        data-mq
+        className={cn(
+          'inline-block px-4 font-persian text-sm font-bold',
+          isDot ? 'text-cyan/60' : 'text-silver/60'
+        )}
+        style={{ willChange: 'filter, opacity' }}
+      >
+        {item}
+      </span>
+    )
+  })
+
+  return (
+    <div style={{ overflow: 'visible', width: '100%' }}>
+      <div ref={trackRef} className="cf-marquee" style={{ willChange: 'transform' }}>
+        {row}{row}
+      </div>
+    </div>
+  )
+}
 
 // ─── Nav links ────────────────────────────────────────────────────────────────
 const navLinks = [
@@ -211,11 +263,9 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-36 left-0 w-full z-10" style={{ perspective: '900px' }}>
-            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d', padding: '1.25rem 0' }}>
-              <div className="cf-marquee flex w-max text-sm font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
-                <MarqueeItem /><MarqueeItem />
-              </div>
+          <div className="absolute top-36 left-0 w-full z-10" style={{ perspective: '900px', overflow: 'visible' }}>
+            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d', padding: '1.25rem 0', overflow: 'visible' }}>
+              <BlurMarquee />
             </div>
           </div>
 
