@@ -151,7 +151,7 @@ function BlurMarquee() {
     // scrollWidth is unaffected by CSS transforms — gives true layout width
     copyWidthRef.current = single.scrollWidth
 
-    const PX_PER_MS = 0.045
+    const PX_PER_MS = 0.054
     let last = performance.now()
 
     const tick = (now: number) => {
