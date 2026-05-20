@@ -137,35 +137,45 @@ const MARQUEE_ITEMS = [
 ]
 
 function BlurMarquee() {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const rafRef   = useRef<number | null>(null)
+  const wrapRef   = useRef<HTMLDivElement>(null)
+  const trackRef  = useRef<HTMLDivElement>(null)
+  const singleRef = useRef<HTMLDivElement>(null)
+  const rafRef    = useRef<number | null>(null)
   const offsetRef = useRef(0)
+  const copyWidthRef = useRef(0)
 
   useEffect(() => {
-    const track = trackRef.current
-    if (!track) return
+    const track  = trackRef.current
+    const single = singleRef.current
+    if (!track || !single) return
 
-    // Two copies — when first copy scrolls fully left, reset seamlessly
-    const halfWidth = () => track.scrollWidth / 2
-    const PX_PER_MS = 0.045 // scroll speed
+    // Measure a single copy's rendered width after paint
+    copyWidthRef.current = single.getBoundingClientRect().width
+
+    const PX_PER_MS = 0.045
     let last = performance.now()
 
     const tick = (now: number) => {
       const dt = now - last
       last = now
+
       offsetRef.current += PX_PER_MS * dt
-      if (offsetRef.current >= halfWidth()) offsetRef.current -= halfWidth()
+      // Reset by exactly one copy width — seamless, no jump
+      if (offsetRef.current >= copyWidthRef.current) {
+        offsetRef.current -= copyWidthRef.current
+      }
+
       track.style.transform = `translateX(${-offsetRef.current}px)`
 
-      // Per-span blur based on distance from viewport centre
+      // Per-span blur/opacity based on distance from viewport centre
       const cx = window.innerWidth / 2
       const spans = track.querySelectorAll<HTMLSpanElement>('span[data-mq]')
       spans.forEach((span) => {
         const r = span.getBoundingClientRect()
         const itemCx = r.left + r.width / 2
-        const dist = Math.abs(itemCx - cx) / (cx || 1)       // 0 = centre, 1 = edge
-        const blur = Math.pow(dist, 1.6) * 7                  // max ~7px at edges
-        const opacity = 0.18 + (1 - Math.pow(dist, 1.2)) * 0.52 // 0.18 → 0.70
+        const dist = Math.min(Math.abs(itemCx - cx) / (cx || 1), 1)
+        const blur    = Math.pow(dist, 1.6) * 7
+        const opacity = 0.18 + (1 - Math.pow(dist, 1.2)) * 0.52
         span.style.filter  = `blur(${blur.toFixed(2)}px)`
         span.style.opacity = opacity.toFixed(3)
       })
@@ -177,27 +187,34 @@ function BlurMarquee() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current) }
   }, [])
 
-  const row = MARQUEE_ITEMS.map((item, i) => {
-    const isDot = item === '✦'
-    return (
-      <span
-        key={i}
-        data-mq
-        className={cn(
-          'inline-block px-4 font-persian text-sm font-bold',
-          isDot ? 'text-cyan/60' : 'text-silver/60'
-        )}
-        style={{ willChange: 'filter, opacity' }}
-      >
-        {item}
-      </span>
-    )
-  })
+  const makeRow = (refProp?: React.RefObject<HTMLDivElement>) => (
+    <div ref={refProp} className="flex items-center shrink-0">
+      {MARQUEE_ITEMS.map((item, i) => {
+        const isDot = item === '✦'
+        return (
+          <span
+            key={i}
+            data-mq
+            className={cn(
+              'inline-block px-4 font-persian text-sm font-bold',
+              isDot ? 'text-cyan/60' : 'text-silver/60'
+            )}
+            style={{ willChange: 'filter, opacity' }}
+          >
+            {item}
+          </span>
+        )
+      })}
+    </div>
+  )
 
   return (
-    <div style={{ overflow: 'visible', width: '100%' }}>
+    <div ref={wrapRef} style={{ overflow: 'visible', width: '100%' }}>
       <div ref={trackRef} className="cf-marquee" style={{ willChange: 'transform' }}>
-        {row}{row}
+        {/* First copy — measured for loop width */}
+        {makeRow(singleRef)}
+        {/* Extra copies ensure no gap regardless of screen width */}
+        {makeRow()}{makeRow()}{makeRow()}
       </div>
     </div>
   )
