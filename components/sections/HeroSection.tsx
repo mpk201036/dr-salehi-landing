@@ -6,13 +6,13 @@ import { doctor, headline } from '@/lib/content'
 import PhoneIcon from '@/components/ui/PhoneIcon'
 import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
-// Clip durations in seconds (from ffprobe) — used to weight scroll segments
+// Clip durations in seconds (from ffprobe)
 const CLIP_DURATIONS = [6.041667, 4.041667, 6.041667, 6.041667, 6.041667, 6.041667, 4.041667, 6.041667, 5.041667]
 const CLIP_COUNT = CLIP_DURATIONS.length
 const TOTAL_DURATION = CLIP_DURATIONS.reduce((a, b) => a + b, 0)
 
-// Cumulative start offsets as a fraction of total [0..1]
-const CLIP_START_FRACTIONS = CLIP_DURATIONS.reduce<number[]>((acc, dur, i) => {
+// Cumulative start fraction for each clip [0..1]
+const CLIP_START_FRACTIONS = CLIP_DURATIONS.reduce<number[]>((acc, _, i) => {
   acc.push(i === 0 ? 0 : acc[i - 1] + CLIP_DURATIONS[i - 1] / TOTAL_DURATION)
   return acc
 }, [])
@@ -29,6 +29,18 @@ function getClipAndTime(globalProgress: number): { clipIndex: number; localTime:
   return { clipIndex: 0, localTime: 0 }
 }
 
+function initCanvasSize(canvas: HTMLCanvasElement | null) {
+  if (!canvas) return
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const w = canvas.offsetWidth
+  const h = canvas.offsetHeight
+  if (w === 0 || h === 0) return
+  canvas.width = w * dpr
+  canvas.height = h * dpr
+  const c2d = canvas.getContext('2d', { alpha: false })
+  if (c2d) c2d.setTransform(dpr, 0, 0, dpr, 0, 0)
+}
+
 export default function HeroSection() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ctaRef = useRef<HTMLDivElement>(null)
@@ -37,11 +49,35 @@ export default function HeroSection() {
 
   useEffect(() => {
     let cancelled = false
-    let ctx: { revert: () => void } | null = null
+    let gsapCtx: { revert: () => void } | null = null
     let rafId: number | null = null
 
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const c2d = canvas.getContext('2d', { alpha: false })
+    if (!c2d) return
+
+    // ── Sync canvas size immediately (before any async work) ─────────────────
+    // Canvas offsetWidth/Height are available synchronously on first paint.
+    // We must set this before the GSAP async import so the canvas isn't stuck
+    // at the browser default of 300×150.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+
+    const syncCanvasSize = () => {
+      if (!canvas || cancelled) return
+      const w = canvas.offsetWidth
+      const h = canvas.offsetHeight
+      if (w === 0 || h === 0) return
+      canvas.width = w * dpr
+      canvas.height = h * dpr
+      // setTransform resets accumulated scale — critical to call this not scale()
+      c2d.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+
+    syncCanvasSize()
 
     // Create all video elements off-DOM
     const videos: HTMLVideoElement[] = Array.from({ length: CLIP_COUNT }, (_, i) => {
@@ -50,64 +86,52 @@ export default function HeroSection() {
       v.muted = true
       v.playsInline = true
       v.preload = 'auto'
-      v.setAttribute('disablepictureinpicture', '')
-      v.setAttribute('x-webkit-airplay', 'deny')
       return v
     })
 
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const c2d = canvas.getContext('2d', { alpha: false })
-    if (!c2d) return
+    // ── ResizeObserver — keep canvas sharp on window resize ──────────────────
+    const resizeObs = new ResizeObserver(() => {
+      syncCanvasSize()
+      drawFrame(true) // force redraw after resize
+    })
+    resizeObs.observe(canvas)
 
-    // Resize canvas to match display pixels — this is what makes it sharp
-    const resizeCanvas = () => {
-      if (!canvas || cancelled) return
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      const w = canvas.offsetWidth
-      const h = canvas.offsetHeight
-      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-        canvas.width = w * dpr
-        canvas.height = h * dpr
-        c2d.scale(dpr, dpr)
-      }
-    }
-
-    // Draw the current frame from whichever video is active
+    // ── Frame drawing ─────────────────────────────────────────────────────────
     let currentClipIndex = 0
-    let lastDrawnClipIndex = -1
-    let lastDrawnTime = -1
+    let lastDrawnKey = ''
 
-    const drawFrame = () => {
+    const drawFrame = (force = false) => {
       if (!canvas || !c2d || cancelled) return
       const v = videos[currentClipIndex]
       if (!v || v.readyState < 2) return
 
-      const vt = v.currentTime
-      // Skip redraw if nothing changed
-      if (currentClipIndex === lastDrawnClipIndex && Math.abs(vt - lastDrawnTime) < 0.001) return
+      const key = `${currentClipIndex}:${v.currentTime.toFixed(3)}`
+      if (!force && key === lastDrawnKey) return
+      lastDrawnKey = key
 
+      // Logical (CSS) dimensions — context is already pre-scaled by setTransform
       const cw = canvas.offsetWidth
       const ch = canvas.offsetHeight
+      if (cw === 0 || ch === 0) return
+
       const vw = v.videoWidth || 1916
       const vh = v.videoHeight || 1080
 
-      // Cover scaling — same as object-fit: cover
+      // object-fit: cover
       const scale = Math.max(cw / vw, ch / vh)
       const dw = vw * scale
       const dh = vh * scale
       const dx = (cw - dw) / 2
-      // Portrait/mobile: shift up to show top of frame (matches the old objectPosition: center 15%)
-      const isMobilePortrait = window.innerWidth < 768 && window.innerHeight > window.innerWidth
-      const dyRaw = (ch - dh) / 2
-      const dy = isMobilePortrait ? Math.min(dyRaw, dyRaw + (dh - ch) * 0.30) : dyRaw
+      const dyBase = (ch - dh) / 2
+
+      // On portrait mobile, shift frame up slightly (matches old objectPosition: center 15%)
+      const isMobilePortrait = cw < 768 && ch > cw
+      const dy = isMobilePortrait ? Math.min(dyBase, dyBase + (dh - ch) * 0.3) : dyBase
 
       c2d.drawImage(v, dx, dy, dw, dh)
-      lastDrawnClipIndex = currentClipIndex
-      lastDrawnTime = vt
     }
 
-    // Seeking machinery per clip — same queue pattern as before, per video
+    // ── Per-clip seek queue ───────────────────────────────────────────────────
     const seeking = new Array(CLIP_COUNT).fill(false)
     const pendingTime = new Array<number | null>(CLIP_COUNT).fill(null)
 
@@ -115,10 +139,7 @@ export default function HeroSection() {
       const v = videos[clipIdx]
       if (!v) return
       const clamped = Math.max(0, Math.min(t, CLIP_DURATIONS[clipIdx] - 0.04))
-      if (seeking[clipIdx]) {
-        pendingTime[clipIdx] = clamped
-        return
-      }
+      if (seeking[clipIdx]) { pendingTime[clipIdx] = clamped; return }
       if (Math.abs(v.currentTime - clamped) < 0.016) return
       seeking[clipIdx] = true
       try { v.currentTime = clamped } catch (_) { seeking[clipIdx] = false }
@@ -132,10 +153,12 @@ export default function HeroSection() {
           pendingTime[i] = null
           applySeek(i, t)
         }
+        // Draw as soon as a seek completes
+        if (i === currentClipIndex) drawFrame(true)
       })
     })
 
-    // Global scroll progress → clip + localTime target
+    // ── RAF loop ──────────────────────────────────────────────────────────────
     let targetClipIndex = 0
     let targetLocalTime = 0
 
@@ -147,41 +170,39 @@ export default function HeroSection() {
       rafId = requestAnimationFrame(tick)
     }
 
-    const resizeObs = new ResizeObserver(() => {
-      resizeCanvas()
-      drawFrame()
-    })
-    resizeObs.observe(canvas)
-    resizeCanvas()
-
+    // ── GSAP + loading ────────────────────────────────────────────────────────
     const initGSAP = async () => {
       const { gsap } = await import('gsap')
       const { ScrollTrigger } = await import('gsap/ScrollTrigger')
       gsap.registerPlugin(ScrollTrigger)
       if (cancelled) return
 
-      // Wait for first clip to have metadata before starting
+      // Kick all videos loading immediately
+      videos.forEach((v) => {
+        v.load()
+        // play/pause trick forces browser to buffer even without user gesture
+        v.play().then(() => { v.pause(); v.currentTime = 0 }).catch(() => {})
+      })
+
+      // Wait for first clip to be drawable (readyState >= 2 = HAVE_CURRENT_DATA)
       await new Promise<void>((resolve) => {
         const v = videos[0]
-        if (v.readyState >= 1) { resolve(); return }
-        v.addEventListener('loadedmetadata', () => resolve(), { once: true })
-        setTimeout(resolve, 3000)
+        if (v.readyState >= 2) { resolve(); return }
+        const onReady = () => { resolve() }
+        v.addEventListener('loadeddata', onReady, { once: true })
+        v.addEventListener('canplay', onReady, { once: true })
+        setTimeout(resolve, 5000) // never block forever
       })
       if (cancelled) return
 
-      // Pre-buffer clip 0 fully; start buffering the rest in the background
-      videos[0].play().then(() => { videos[0].pause(); videos[0].currentTime = 0 }).catch(() => {})
-      for (let i = 1; i < CLIP_COUNT; i++) {
-        // Fire-and-forget: start loading without waiting
-        videos[i].load()
-        videos[i].play().then(() => { videos[i].pause(); videos[i].currentTime = 0 }).catch(() => {})
-      }
-
+      // Start RAF + draw first frame immediately
+      syncCanvasSize()
+      drawFrame(true)
       rafId = requestAnimationFrame(tick)
 
       const isMobile = window.innerWidth < 768
 
-      ctx = gsap.context(() => {
+      gsapCtx = gsap.context(() => {
         ScrollTrigger.create({
           trigger: '#hero',
           start: 'top top',
@@ -200,8 +221,7 @@ export default function HeroSection() {
           },
         })
 
-        gsap.fromTo(
-          ctaRef.current,
+        gsap.fromTo(ctaRef.current,
           { opacity: 0, y: 32 },
           { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out', delay: 0.5 }
         )
@@ -221,7 +241,7 @@ export default function HeroSection() {
     return () => {
       cancelled = true
       if (rafId !== null) cancelAnimationFrame(rafId)
-      ctx?.revert()
+      gsapCtx?.revert()
       resizeObs.disconnect()
       videos.forEach((v) => { v.src = '' })
       document.documentElement.style.scrollBehavior = ''
@@ -238,20 +258,18 @@ export default function HeroSection() {
 
   return (
     <section id="hero" className="relative">
-      <div
-        className="hero-inner relative w-full"
-        style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-      >
-        {/* Poster shown until first frame draws — sits beneath canvas */}
+      <div className="hero-inner relative w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
+
+        {/* Poster — sits below canvas, visible until first frame draws */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: 'url(/hero-sequence/hero-poster.jpg)', zIndex: 0 }}
           aria-hidden="true"
         />
 
-        {/* Canvas — renders frames pixel-perfect at device DPR, sits above poster */}
+        {/* Canvas — pixel-perfect frame rendering at device DPR */}
         <canvas
-          ref={canvasRef}
+          ref={(el) => { (canvasRef as React.MutableRefObject<HTMLCanvasElement | null>).current = el; initCanvasSize(el) }}
           className="absolute inset-0 w-full h-full"
           style={{
             zIndex: 1,
@@ -265,9 +283,11 @@ export default function HeroSection() {
         />
 
         {/* Edge vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(13,27,42,0.55)_100%)] pointer-events-none" style={{ zIndex: 2 }} />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(13,27,42,0.55) 100%)', zIndex: 2 }} />
         {/* Bottom fade */}
-        <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-[#0F2132] via-[#0F2132]/70 to-transparent pointer-events-none" style={{ zIndex: 2 }} />
+        <div className="absolute bottom-0 inset-x-0 h-40 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, #0F2132, rgba(15,33,50,0.7), transparent)', zIndex: 2 }} />
 
         {/* CTA overlay */}
         <div
@@ -297,11 +317,8 @@ export default function HeroSection() {
           <svg className="w-full h-full" viewBox="0 0 1440 40" preserveAspectRatio="none">
             <motion.path
               d="M0 20 H320 L340 8 L360 32 L380 14 L400 26 L420 20 H600 L620 8 L640 32 L660 14 L680 26 L700 20 H900 L920 8 L940 32 L960 14 L980 26 L1000 20 H1440"
-              stroke="#0EA5C0"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              stroke="#0EA5C0" strokeWidth="1.5" fill="none"
+              strokeLinecap="round" strokeLinejoin="round"
               initial={{ pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 0.35 }}
               transition={{ duration: 2.4, ease: 'easeInOut', delay: 0.8 }}

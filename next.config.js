@@ -5,9 +5,12 @@ const isDev = process.env.NODE_ENV === 'development'
 const cspDirectives = [
   "default-src 'self'",
   "font-src 'self' https://fonts.gstatic.com",
-  "frame-src https://www.google.com https://maps.google.com https://calendly.com",
+  "frame-src https://www.google.com https://maps.google.com https://calendly.com https://maps.neshan.org",
   "img-src 'self' data: blob: https://calendly.com",
-  "script-src 'self' 'unsafe-inline' https://assets.calendly.com",
+  // unsafe-eval required by Next.js dev mode (webpack/turbopack HMR); safe to remove in prod
+  isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com"
+    : "script-src 'self' 'unsafe-inline' https://assets.calendly.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com",
   // Dev: allow Next.js HMR websocket on localhost; prod: self only
   isDev
