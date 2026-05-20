@@ -41,7 +41,7 @@ export default function LocationSection() {
                 تماس تلفنی
               </a>
               <a
-                href="https://maps.google.com/?q=35.69286378678149,51.48707691770935"
+                href="https://neshan.org/maps/@35.69286378678149,51.48707691770935,17z"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 border border-silver/20 hover:border-cyan text-silver hover:text-cyan px-6 py-3 rounded-full text-sm transition-all duration-300"
@@ -49,7 +49,7 @@ export default function LocationSection() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
                 </svg>
-                مسیریابی در گوگل مپ
+                مسیریابی در نشان
               </a>
             </div>
           </div>
@@ -58,13 +58,12 @@ export default function LocationSection() {
           <div className="reveal relative">
             <div className="glass rounded-2xl lg:rounded-3xl overflow-hidden h-64 sm:h-80 lg:h-96 relative">
               <iframe
-                src="https://maps.google.com/maps?q=35.69286378678149,51.48707691770935&z=17&output=embed&hl=fa"
+                src="https://maps.neshan.org/embed?type=standard&zoom=17&center=35.69286378678149,51.48707691770935&markerlat=35.69286378678149&markerlng=51.48707691770935&lang=fa"
                 width="100%"
                 height="100%"
-                style={{ border: 0, filter: 'invert(88%) hue-rotate(180deg) saturate(0.35) brightness(0.95)' }}
+                style={{ border: 0 }}
                 allowFullScreen
                 loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
                 title="موقعیت مطب دکتر علی صالحی — پیروزی، تهران"
               />
               <div className="absolute bottom-4 right-4 glass rounded-xl p-3 shadow-lg pointer-events-none">
