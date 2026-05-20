@@ -58,10 +58,10 @@ export default function LocationSection() {
           <div className="reveal relative">
             <div className="glass rounded-2xl lg:rounded-3xl overflow-hidden h-64 sm:h-80 lg:h-96 relative">
               <iframe
-                src="https://maps.neshan.org/embed?type=standard&zoom=17&center=35.69286378678149,51.48707691770935&markerlat=35.69286378678149&markerlng=51.48707691770935&lang=fa"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=51.4845%2C35.6913%2C51.4896%2C35.6944&layer=mapnik&marker=35.69286%2C51.48708"
                 width="100%"
                 height="100%"
-                style={{ border: 0 }}
+                style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) saturate(0.4) brightness(0.88)' }}
                 allowFullScreen
                 loading="lazy"
                 title="موقعیت مطب دکتر علی صالحی — پیروزی، تهران"

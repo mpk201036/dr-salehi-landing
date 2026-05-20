@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === 'development'
 const cspDirectives = [
   "default-src 'self'",
   "font-src 'self' https://fonts.gstatic.com",
-  "frame-src https://www.google.com https://maps.google.com https://calendly.com https://maps.neshan.org",
+  "frame-src https://www.google.com https://maps.google.com https://calendly.com https://maps.neshan.org https://www.openstreetmap.org",
   "img-src 'self' data: blob: https://calendly.com",
   // unsafe-eval required by Next.js dev mode (webpack/turbopack HMR); safe to remove in prod
   isDev
