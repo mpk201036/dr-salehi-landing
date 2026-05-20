@@ -16,6 +16,8 @@ export default function HeroSection() {
     let cancelled = false
     let ctx: { revert: () => void } | null = null
     let rafId: number | null = null
+    let pendingTime: number | null = null
+    let seeking = false
 
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
@@ -36,70 +38,64 @@ export default function HeroSection() {
       })
       if (cancelled) return
 
-      // Force browser to buffer the full video
+      // Buffer the full video upfront — critical for smooth backward seeking
       video.play().then(() => { video.pause(); video.currentTime = 0 }).catch(() => {})
-
-      // Wait for full buffer with 3s fallback
       await new Promise<void>((resolve) => {
         if (video.readyState >= 4) { resolve(); return }
         video.addEventListener('canplaythrough', () => resolve(), { once: true })
-        setTimeout(resolve, 3000)
+        setTimeout(resolve, 4000)
       })
       if (cancelled) return
 
       const duration = video.duration || 1
       const isMobile = window.innerWidth < 768
 
-      // Returns the furthest buffered second — clamp seeks to this
-      const bufferedEnd = () => {
-        if (!video.buffered.length) return duration
-        let end = 0
-        for (let i = 0; i < video.buffered.length; i++) {
-          if (video.buffered.end(i) > end) end = video.buffered.end(i)
+      // When a seek completes, apply any pending seek that arrived during it.
+      // This is the key to freeze-free bidirectional scrubbing — we never
+      // drop a seek, we just queue the latest one.
+      const onSeeked = () => {
+        seeking = false
+        if (pendingTime !== null && !cancelled) {
+          const t = pendingTime
+          pendingTime = null
+          applySeek(t)
         }
-        return end
+      }
+      video.addEventListener('seeked', onSeeked)
+
+      const applySeek = (t: number) => {
+        const clamped = Math.max(0, Math.min(t, duration - 0.04))
+        if (seeking) {
+          // Already seeking — store as pending, don't stack seeks
+          pendingTime = clamped
+          return
+        }
+        if (Math.abs(video.currentTime - clamped) < 0.02) return
+        seeking = true
+        try { video.currentTime = clamped } catch (_) { seeking = false }
       }
 
-      // Lerped current time — smoothly interpolates between frames
-      let displayTime = 0
-      let targetTime = 0
-      let isAnimating = false
-
-      const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-      // Lerp factor: higher = snappier, lower = smoother lag
-      // 0.12 on desktop gives cinema-smooth; 0.18 on mobile avoids perceived lag
-      const LERP_FACTOR = isMobile ? 0.18 : 0.12
+      // RAF loop: drain the latest target each frame — no lerp, no lag,
+      // direction changes are instant because every frame is a keyframe
+      let latestTarget = 0
+      let lastApplied = -1
 
       const tick = () => {
         if (cancelled) return
-        const delta = Math.abs(targetTime - displayTime)
-        if (delta > 0.001) {
-          displayTime = lerp(displayTime, targetTime, LERP_FACTOR)
-          const safeTime = Math.min(displayTime, bufferedEnd() - 0.05)
-          if (safeTime >= 0) {
-            try { video.currentTime = safeTime } catch (_) {}
-          }
-          rafId = requestAnimationFrame(tick)
-        } else {
-          // Snap to target when close enough, stop RAF
-          displayTime = targetTime
-          const safeTime = Math.min(displayTime, bufferedEnd() - 0.05)
-          if (safeTime >= 0) {
-            try { video.currentTime = safeTime } catch (_) {}
-          }
-          isAnimating = false
-          rafId = null
+        if (Math.abs(latestTarget - lastApplied) > 0.01) {
+          lastApplied = latestTarget
+          applySeek(latestTarget)
         }
+        rafId = requestAnimationFrame(tick)
       }
+      rafId = requestAnimationFrame(tick)
 
       ctx = gsap.context(() => {
         ScrollTrigger.create({
           trigger: '#hero',
           start: 'top top',
           end: '+=200%',
-          // scrub: number adds GSAP's own lerp on top — we handle our own,
-          // so use a small value just to smooth the progress signal itself
-          scrub: isMobile ? 0.3 : 0.15,
+          scrub: isMobile ? 0.4 : 0.2,
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
@@ -107,41 +103,26 @@ export default function HeroSection() {
           fastScrollEnd: true,
           preventOverlaps: true,
           onUpdate: (self) => {
-            targetTime = self.progress * duration
-            if (!isAnimating) {
-              isAnimating = true
-              rafId = requestAnimationFrame(tick)
-            }
+            latestTarget = self.progress * duration
           },
         })
 
-        // CTA entrance — ease-out quart feels premium
         gsap.fromTo(
           ctaRef.current,
           { opacity: 0, y: 32 },
           { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out', delay: 0.5 }
         )
-        // CTA fade on scroll — smooth scrub
         gsap.to(ctaRef.current, {
           opacity: 0, y: -24,
-          scrollTrigger: {
-            trigger: '#hero',
-            start: '12% top',
-            end: '40% top',
-            scrub: 0.3,
-          },
+          scrollTrigger: { trigger: '#hero', start: '12% top', end: '40% top', scrub: 0.3 },
         })
-        // Scroll indicator fade
         gsap.to(scrollIndicatorRef.current, {
           opacity: 0,
-          scrollTrigger: {
-            trigger: '#hero',
-            start: '4% top',
-            end: '18% top',
-            scrub: 0.2,
-          },
+          scrollTrigger: { trigger: '#hero', start: '4% top', end: '18% top', scrub: 0.2 },
         })
       })
+
+      return () => { video.removeEventListener('seeked', onSeeked) }
     }
 
     initGSAP()
@@ -174,7 +155,7 @@ export default function HeroSection() {
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          src="/hero-sequence/hero.mp4"
+          src="https://github.com/mpk201036/dr-salehi-landing/releases/download/v1.0-assets/hero.mp4"
           poster="/hero-sequence/hero-poster.jpg"
           muted
           playsInline
