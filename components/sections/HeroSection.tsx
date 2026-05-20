@@ -155,7 +155,7 @@ export default function HeroSection() {
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          src="https://github.com/mpk201036/dr-salehi-landing/releases/download/v1.0-assets/hero.mp4"
+          src="/hero-sequence/hero.mp4"
           poster="/hero-sequence/hero-poster.jpg"
           muted
           playsInline
