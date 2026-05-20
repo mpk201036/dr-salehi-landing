@@ -217,9 +217,6 @@ export function CinematicFooter() {
                 <MarqueeItem /><MarqueeItem />
               </div>
             </div>
-            {/* Edge fades matched to navy background */}
-            <div className="absolute inset-y-0 left-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(90deg, #0F2132 0%, transparent 100%)' }} />
-            <div className="absolute inset-y-0 right-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(270deg, #0F2132 0%, transparent 100%)' }} />
           </div>
 
           {/* Main content */}
