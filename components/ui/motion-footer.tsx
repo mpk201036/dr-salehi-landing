@@ -137,7 +137,6 @@ const MARQUEE_ITEMS = [
 ]
 
 function BlurMarquee() {
-  const wrapRef   = useRef<HTMLDivElement>(null)
   const trackRef  = useRef<HTMLDivElement>(null)
   const singleRef = useRef<HTMLDivElement>(null)
   const rafRef    = useRef<number | null>(null)
@@ -149,8 +148,8 @@ function BlurMarquee() {
     const single = singleRef.current
     if (!track || !single) return
 
-    // Measure a single copy's rendered width after paint
-    copyWidthRef.current = single.getBoundingClientRect().width
+    // scrollWidth is unaffected by CSS transforms — gives true layout width
+    copyWidthRef.current = single.scrollWidth
 
     const PX_PER_MS = 0.045
     let last = performance.now()
@@ -160,14 +159,13 @@ function BlurMarquee() {
       last = now
 
       offsetRef.current += PX_PER_MS * dt
-      // Reset by exactly one copy width — seamless, no jump
       if (offsetRef.current >= copyWidthRef.current) {
         offsetRef.current -= copyWidthRef.current
       }
 
       track.style.transform = `translateX(${-offsetRef.current}px)`
 
-      // Per-span blur/opacity based on distance from viewport centre
+      // Blur/opacity by distance from viewport centre
       const cx = window.innerWidth / 2
       const spans = track.querySelectorAll<HTMLSpanElement>('span[data-mq]')
       spans.forEach((span) => {
@@ -188,7 +186,7 @@ function BlurMarquee() {
   }, [])
 
   const makeRow = (refProp?: React.RefObject<HTMLDivElement>) => (
-    <div ref={refProp} className="flex items-center shrink-0">
+    <div ref={refProp} className="flex items-center shrink-0" style={{ whiteSpace: 'nowrap' }}>
       {MARQUEE_ITEMS.map((item, i) => {
         const isDot = item === '✦'
         return (
@@ -209,11 +207,13 @@ function BlurMarquee() {
   )
 
   return (
-    <div ref={wrapRef} style={{ overflow: 'visible', width: '100%' }}>
-      <div ref={trackRef} className="cf-marquee" style={{ willChange: 'transform' }}>
-        {/* First copy — measured for loop width */}
+    <div style={{ overflow: 'visible', width: '100%' }}>
+      {/* Track: no 3D transform here — perspective sits on the outer wrapper */}
+      <div
+        ref={trackRef}
+        style={{ display: 'flex', flexWrap: 'nowrap', whiteSpace: 'nowrap', willChange: 'transform' }}
+      >
         {makeRow(singleRef)}
-        {/* Extra copies ensure no gap regardless of screen width */}
         {makeRow()}{makeRow()}{makeRow()}
       </div>
     </div>
@@ -280,10 +280,8 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-36 left-0 w-full z-10" style={{ perspective: '900px', overflow: 'visible' }}>
-            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d', padding: '1.25rem 0', overflow: 'visible' }}>
-              <BlurMarquee />
-            </div>
+          <div className="absolute top-36 left-0 w-full z-10 py-5" style={{ overflow: 'visible' }}>
+            <BlurMarquee />
           </div>
 
           {/* Main content */}
