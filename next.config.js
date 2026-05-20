@@ -7,7 +7,7 @@ const cspDirectives = [
   "font-src 'self' https://fonts.gstatic.com",
   "frame-src https://www.google.com https://maps.google.com https://calendly.com",
   "img-src 'self' data: blob: https://calendly.com",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com",
+  "script-src 'self' 'unsafe-inline' https://assets.calendly.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com",
   // Dev: allow Next.js HMR websocket on localhost; prod: self only
   isDev
@@ -29,7 +29,7 @@ const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
   // HSTS only meaningful over HTTPS
-  ...(!isDev ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' }] : []),
+  ...(!isDev ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }] : []),
   { key: 'Content-Security-Policy', value: cspDirectives.join('; ') },
 ]
 
