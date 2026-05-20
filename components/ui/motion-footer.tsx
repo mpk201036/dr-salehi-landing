@@ -142,6 +142,10 @@ const MarqueeItem = () => (
     <span className="text-cyan/50">✦</span>
     <span>هولتر مانیتورینگ</span>
     <span className="text-cyan/50">✦</span>
+    <span>فشار خون</span>
+    <span className="text-cyan/50">✦</span>
+    <span>هولتر فشار خون ۲۴ ساعته</span>
+    <span className="text-cyan/50">✦</span>
     <span>رزرو آنلاین نوبت</span>
     <span className="text-cyan/50">✦</span>
   </div>
@@ -207,10 +211,16 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-20 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10">
-            <div className="cf-marquee flex w-max text-xs font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
-              <MarqueeItem /><MarqueeItem />
+          <div className="absolute top-20 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10"
+            style={{ perspective: '900px' }}>
+            <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d' }}>
+              <div className="cf-marquee flex w-max text-xs font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
+                <MarqueeItem /><MarqueeItem />
+              </div>
             </div>
+            {/* Edge fades */}
+            <div className="absolute inset-y-0 left-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(90deg, rgba(15,33,50,0.95) 0%, transparent 100%)' }} />
+            <div className="absolute inset-y-0 right-0 w-24 pointer-events-none" style={{ background: 'linear-gradient(270deg, rgba(15,33,50,0.95) 0%, transparent 100%)' }} />
           </div>
 
           {/* Main content */}
