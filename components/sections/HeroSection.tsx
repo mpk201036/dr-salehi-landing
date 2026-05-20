@@ -15,6 +15,7 @@ export default function HeroSection() {
   useEffect(() => {
     let cancelled = false
     let ctx: { revert: () => void } | null = null
+    let rafId: number | null = null
 
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
@@ -28,33 +29,30 @@ export default function HeroSection() {
       const video = videoRef.current
       if (!video || cancelled) return
 
-      // Wait for metadata so we have duration
+      // Wait for metadata
       await new Promise<void>((resolve) => {
         if (video.readyState >= 1) { resolve(); return }
         video.addEventListener('loadedmetadata', () => resolve(), { once: true })
       })
       if (cancelled) return
 
-      // Silently preload — forces browser to buffer the full video
-      // The re-encoded video has a keyframe every 3 frames so seeks are instant
+      // Force browser to buffer the full video
       video.play().then(() => { video.pause(); video.currentTime = 0 }).catch(() => {})
 
-      // Wait for full buffer (canplaythrough) with a 2s fallback
+      // Wait for full buffer with 3s fallback
       await new Promise<void>((resolve) => {
         if (video.readyState >= 4) { resolve(); return }
         video.addEventListener('canplaythrough', () => resolve(), { once: true })
-        setTimeout(resolve, 2000)
+        setTimeout(resolve, 3000)
       })
       if (cancelled) return
 
       const duration = video.duration || 1
-      let lastProgress = -1
       const isMobile = window.innerWidth < 768
 
-      // Returns the furthest second that has been downloaded into the buffer.
-      // Seeking beyond this causes a network stall — we clamp to it instead.
+      // Returns the furthest buffered second — clamp seeks to this
       const bufferedEnd = () => {
-        if (!video.buffered.length) return 0
+        if (!video.buffered.length) return duration
         let end = 0
         for (let i = 0; i < video.buffered.length; i++) {
           if (video.buffered.end(i) > end) end = video.buffered.end(i)
@@ -62,43 +60,86 @@ export default function HeroSection() {
         return end
       }
 
+      // Lerped current time — smoothly interpolates between frames
+      let displayTime = 0
+      let targetTime = 0
+      let isAnimating = false
+
+      const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+      // Lerp factor: higher = snappier, lower = smoother lag
+      // 0.12 on desktop gives cinema-smooth; 0.18 on mobile avoids perceived lag
+      const LERP_FACTOR = isMobile ? 0.18 : 0.12
+
+      const tick = () => {
+        if (cancelled) return
+        const delta = Math.abs(targetTime - displayTime)
+        if (delta > 0.001) {
+          displayTime = lerp(displayTime, targetTime, LERP_FACTOR)
+          const safeTime = Math.min(displayTime, bufferedEnd() - 0.05)
+          if (safeTime >= 0) {
+            try { video.currentTime = safeTime } catch (_) {}
+          }
+          rafId = requestAnimationFrame(tick)
+        } else {
+          // Snap to target when close enough, stop RAF
+          displayTime = targetTime
+          const safeTime = Math.min(displayTime, bufferedEnd() - 0.05)
+          if (safeTime >= 0) {
+            try { video.currentTime = safeTime } catch (_) {}
+          }
+          isAnimating = false
+          rafId = null
+        }
+      }
+
       ctx = gsap.context(() => {
         ScrollTrigger.create({
           trigger: '#hero',
           start: 'top top',
           end: '+=200%',
-          scrub: isMobile ? 0.5 : true,
+          // scrub: number adds GSAP's own lerp on top — we handle our own,
+          // so use a small value just to smooth the progress signal itself
+          scrub: isMobile ? 0.3 : 0.15,
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
+          fastScrollEnd: true,
+          preventOverlaps: true,
           onUpdate: (self) => {
-            if (Math.abs(self.progress - lastProgress) < 0.001) return
-            lastProgress = self.progress
-            const target = self.progress * duration
-            // Only seek if the target is within what's already buffered.
-            // This prevents freezing on slow connections.
-            const safeTarget = Math.min(target, bufferedEnd() - 0.1)
-            if (safeTarget < 0) return
-            try { video.currentTime = safeTarget } catch (_) {}
+            targetTime = self.progress * duration
+            if (!isAnimating) {
+              isAnimating = true
+              rafId = requestAnimationFrame(tick)
+            }
           },
         })
 
-        // CTA entrance
+        // CTA entrance — ease-out quart feels premium
         gsap.fromTo(
           ctaRef.current,
-          { opacity: 0, y: 28 },
-          { opacity: 1, y: 0, duration: 1.1, ease: 'power2.out', delay: 0.6 }
+          { opacity: 0, y: 32 },
+          { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out', delay: 0.5 }
         )
-        // CTA fade on scroll
+        // CTA fade on scroll — smooth scrub
         gsap.to(ctaRef.current, {
-          opacity: 0, y: -20,
-          scrollTrigger: { trigger: '#hero', start: '15% top', end: '45% top', scrub: true },
+          opacity: 0, y: -24,
+          scrollTrigger: {
+            trigger: '#hero',
+            start: '12% top',
+            end: '40% top',
+            scrub: 0.3,
+          },
         })
         // Scroll indicator fade
         gsap.to(scrollIndicatorRef.current, {
           opacity: 0,
-          scrollTrigger: { trigger: '#hero', start: '5% top', end: '20% top', scrub: true },
+          scrollTrigger: {
+            trigger: '#hero',
+            start: '4% top',
+            end: '18% top',
+            scrub: 0.2,
+          },
         })
       })
     }
@@ -107,6 +148,7 @@ export default function HeroSection() {
 
     return () => {
       cancelled = true
+      if (rafId !== null) cancelAnimationFrame(rafId)
       ctx?.revert()
       document.documentElement.style.scrollBehavior = ''
     }
@@ -128,7 +170,7 @@ export default function HeroSection() {
 
   return (
     <section id="hero" className="relative">
-      <div className="hero-inner relative w-full" style={{ willChange: 'transform' }}>
+      <div className="hero-inner relative w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -140,8 +182,11 @@ export default function HeroSection() {
           {...{ disablePictureInPicture: true, 'x-webkit-airplay': 'deny' }}
           style={{
             objectPosition: videoObjectPosition,
-            willChange: 'contents',
+            transform: 'translateZ(0)',
+            WebkitTransform: 'translateZ(0)',
             WebkitUserSelect: 'none',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
           }}
         />
 
