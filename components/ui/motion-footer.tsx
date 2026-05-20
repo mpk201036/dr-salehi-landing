@@ -165,18 +165,6 @@ function BlurMarquee() {
 
       track.style.transform = `translateX(${-offsetRef.current}px)`
 
-      // Blur/opacity by distance from viewport centre
-      const cx = window.innerWidth / 2
-      const spans = track.querySelectorAll<HTMLSpanElement>('span[data-mq]')
-      spans.forEach((span) => {
-        const r = span.getBoundingClientRect()
-        const itemCx = r.left + r.width / 2
-        const dist = Math.min(Math.abs(itemCx - cx) / (cx || 1), 1)
-        const blur    = Math.pow(dist, 1.6) * 7
-        const opacity = 0.18 + (1 - Math.pow(dist, 1.2)) * 0.52
-        span.style.filter  = `blur(${blur.toFixed(2)}px)`
-        span.style.opacity = opacity.toFixed(3)
-      })
 
       rafRef.current = requestAnimationFrame(tick)
     }
