@@ -211,10 +211,10 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-20 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10"
+          <div className="absolute top-36 left-0 w-full overflow-hidden bg-navy/70 backdrop-blur-md py-5 z-10"
             style={{ perspective: '900px' }}>
             <div style={{ transform: 'rotateX(6deg) rotateY(-18deg)', transformStyle: 'preserve-3d' }}>
-              <div className="cf-marquee flex w-max text-xs font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
+              <div className="cf-marquee flex w-max text-sm font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
                 <MarqueeItem /><MarqueeItem />
               </div>
             </div>
