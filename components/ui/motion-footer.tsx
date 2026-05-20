@@ -196,10 +196,10 @@ function BlurMarquee() {
             key={i}
             data-mq
             className={cn(
-              'inline-block px-4 font-persian text-sm font-bold',
+              'inline-block px-5 font-persian font-bold',
               isDot ? 'text-cyan/60' : 'text-silver/60'
             )}
-            style={{ willChange: 'filter, opacity' }}
+            style={{ willChange: 'filter, opacity', fontSize: '1.15rem' }}
           >
             {item}
           </span>
