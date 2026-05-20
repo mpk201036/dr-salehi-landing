@@ -129,7 +129,7 @@ MagneticButton.displayName = 'MagneticButton'
 
 // ─── Marquee content ──────────────────────────────────────────────────────────
 const MarqueeItem = () => (
-  <div className="flex items-center gap-10 px-6 font-persian">
+  <div className="flex items-center gap-10 px-6 font-persian whitespace-nowrap shrink-0">
     <span>متخصص قلب و عروق</span>
     <span className="text-cyan/50">✦</span>
     <span>بیش از ۴۰ سال تجربه</span>
@@ -207,8 +207,8 @@ export function CinematicFooter() {
           </div>
 
           {/* Marquee */}
-          <div className="absolute top-10 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10 -rotate-1 scale-105">
-            <div className="cf-marquee flex w-max text-xs font-bold text-silver/30">
+          <div className="absolute top-20 left-0 w-full overflow-hidden border-y border-cyan/10 bg-navy/70 backdrop-blur-md py-3 z-10">
+            <div className="cf-marquee flex w-max text-xs font-bold text-silver/30 whitespace-nowrap" style={{ flexWrap: 'nowrap' }}>
               <MarqueeItem /><MarqueeItem />
             </div>
           </div>
