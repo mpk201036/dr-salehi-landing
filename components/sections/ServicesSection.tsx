@@ -176,6 +176,50 @@ const ServiceIcons: Record<string, (active: boolean) => React.ReactElement> = {
     </svg>
   ),
 
+  // Blood Pressure — gauge / pressure meter
+  'blood-pressure': (active) => (
+    <svg viewBox="0 0 40 40" fill="none" className="w-8 h-8">
+      {/* Gauge arc */}
+      <path d="M8 28 A14 14 0 1 1 32 28"
+        stroke="#0EA5C0" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+      {/* Tick marks */}
+      {[0, 30, 60, 90, 120, 150, 180].map((angle, i) => {
+        const rad = ((angle - 90) * Math.PI) / 180
+        const x1 = 20 + 11 * Math.cos(rad)
+        const y1 = 20 + 11 * Math.sin(rad)
+        const x2 = 20 + 13 * Math.cos(rad)
+        const y2 = 20 + 13 * Math.sin(rad)
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0EA5C0" strokeWidth="1" opacity="0.4" />
+      })}
+      {/* Needle */}
+      <line x1="20" y1="20" x2="20" y2="10"
+        stroke={active ? '#EF3838' : '#0EA5C0'} strokeWidth="1.8" strokeLinecap="round"
+        style={active ? { transformOrigin: '20px 20px', animation: 'clockHand 3s ease-in-out infinite alternate' } : {}} />
+      <circle cx="20" cy="20" r="2" fill="#0EA5C0" />
+      {/* BP label */}
+      <text x="20" y="34" textAnchor="middle" fontSize="4.5" fill="#0EA5C0" fontFamily="sans-serif">mmHg</text>
+    </svg>
+  ),
+
+  // 24-Hour BP Holter — clock with pressure cuff wrap
+  'bp-holter': (active) => (
+    <svg viewBox="0 0 40 40" fill="none" className="w-8 h-8">
+      {/* Outer clock */}
+      <circle cx="20" cy="20" r="14" stroke="#0EA5C0" strokeWidth="1.4" />
+      {/* Clock hands */}
+      <line x1="20" y1="20" x2="20" y2="10" stroke="#0EA5C0" strokeWidth="1.8" strokeLinecap="round"
+        style={active ? { transformOrigin: '20px 20px', animation: 'clockHand 4s linear infinite' } : {}} />
+      <line x1="20" y1="20" x2="28" y2="20" stroke="#0EA5C0" strokeWidth="1.4" strokeLinecap="round" />
+      {/* "24h" label */}
+      <text x="20" y="33" textAnchor="middle" fontSize="5" fill="#0EA5C0" fontFamily="sans-serif">24h</text>
+      {/* Pressure wave */}
+      <path d="M8 24 H11 L12.5 21 L14 27 L15.5 20 L17 24 H20"
+        stroke="#EF3838" strokeWidth="1" strokeLinecap="round"
+        strokeDasharray="24" strokeDashoffset={active ? '0' : '24'}
+        style={active ? { animation: 'ecgTrace 0.9s ease-out forwards' } : {}} />
+    </svg>
+  ),
+
   // Preoperative Consultation — clipboard with checkmarks + anesthesia mask
   preop: (active) => (
     <svg viewBox="0 0 40 40" fill="none" className="w-8 h-8">

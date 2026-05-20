@@ -111,7 +111,7 @@ export default function FinalCTA() {
             </span>
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan/50" />
-              ۱۶:۴۵ تا ۲۰:۰۰
+              ۱۵:۳۰ تا ۱۹:۰۰
             </span>
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-arterial/50" />

@@ -71,7 +71,7 @@ export default function RootLayout({
                 addressLocality: 'تهران',
                 addressCountry: 'IR',
               },
-              openingHours: 'Sa-We 16:45-20:00',
+              openingHours: 'Sa-We 15:30-19:00',
               medicalSpecialty: 'Cardiology',
             }),
           }}

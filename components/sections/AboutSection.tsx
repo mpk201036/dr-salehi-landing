@@ -54,7 +54,7 @@ export default function AboutSection() {
             {[
               { icon: '🎓', label: 'تخصص', value: 'قلب و عروق' },
               { icon: '📍', label: 'مکان', value: 'تهران، پیروزی' },
-              { icon: '🕐', label: 'ساعات کاری', value: '۱۶:۴۵ – ۲۰:۰۰\nشنبه تا چهارشنبه' },
+              { icon: '🕐', label: 'ساعات کاری', value: '۱۵:۳۰ – ۱۹:۰۰\nشنبه تا چهارشنبه' },
               { icon: '📋', label: 'بیمه', value: 'نیروهای مسلح' },
             ].map((item) => (
               <motion.div
