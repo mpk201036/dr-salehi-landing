@@ -47,14 +47,18 @@ function detect(): DeviceInfo {
   }
 }
 
-export function useDeviceInfo(): DeviceInfo {
+export function useDeviceInfo(): DeviceInfo & { mounted: boolean } {
   const [info, setInfo] = useState<DeviceInfo>(detect)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // Re-detect now that we're on the client with real UA + viewport
+    setInfo(detect())
+    setMounted(true)
+
     const update = () => setInfo(detect())
     window.addEventListener('resize', update)
     window.addEventListener('orientationchange', update)
-    // Re-check after orientation settles
     window.addEventListener('orientationchange', () => setTimeout(update, 300))
     return () => {
       window.removeEventListener('resize', update)
@@ -62,5 +66,5 @@ export function useDeviceInfo(): DeviceInfo {
     }
   }, [])
 
-  return info
+  return { ...info, mounted }
 }

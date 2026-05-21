@@ -299,17 +299,19 @@ export default function HeroSection() {
     <section id="hero" className="relative">
       <div className="hero-inner relative w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
 
-        {/* Poster — sits below video/canvas, visible until first frame */}
+        {/* Poster — always visible; video/canvas renders on top once ready */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: 'url(/hero-sequence/hero-poster.jpg)', zIndex: 0 }}
           aria-hidden="true"
         />
 
-        {device.isMobile
-          ? <MobileHero ctaRef={ctaRef} />
-          : <DesktopHero ctaRef={ctaRef} scrollIndicatorRef={scrollIndicatorRef} />
-        }
+        {/* Only render the correct hero variant after mount so we know the real device */}
+        {device.mounted && (
+          device.isMobile
+            ? <MobileHero ctaRef={ctaRef} />
+            : <DesktopHero ctaRef={ctaRef} scrollIndicatorRef={scrollIndicatorRef} />
+        )}
 
         {/* Edge vignette */}
         <div className="absolute inset-0 pointer-events-none"
@@ -326,8 +328,8 @@ export default function HeroSection() {
             willChange: 'opacity, transform',
             bottom: ctaBottom,
             zIndex: 10,
-            opacity: device.isMobile ? 0 : 0,
-            transform: device.isMobile ? 'translateY(32px)' : 'translateY(32px)',
+            opacity: 0,
+            transform: 'translateY(32px)',
           }}
         >
           <div>
