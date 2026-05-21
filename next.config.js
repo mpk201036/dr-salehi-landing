@@ -37,6 +37,7 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  output: 'standalone',
   images: {
     formats: ['image/webp', 'image/avif'],
   },
