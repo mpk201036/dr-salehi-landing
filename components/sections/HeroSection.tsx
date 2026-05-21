@@ -48,6 +48,7 @@ function DesktopHero({
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
 
+    // Create all video elements — muted + playsInline required for autoplay/seek on mobile
     const videos: HTMLVideoElement[] = Array.from({ length: CLIP_COUNT }, (_, i) => {
       const v = document.createElement('video')
       v.src = `${BLOB_BASE}/${i + 1}.mp4`
@@ -61,9 +62,10 @@ function DesktopHero({
 
     const canvas = canvasRef.current
     if (!canvas) return
-    const c2d = canvas.getContext('2d', { alpha: false })
+    const c2d = canvas.getContext('2d', { alpha: false, desynchronized: true })
     if (!c2d) return
 
+    // Size canvas to physical pixels for sharpness
     const resizeCanvas = () => {
       if (!canvas || cancelled) return
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -76,72 +78,74 @@ function DesktopHero({
       }
     }
 
-    let currentClipIndex = 0
-    let lastDrawnClipIndex = -1
-    let lastDrawnTime = -1
-
-    const drawFrame = () => {
+    // Cover-fit draw — same as object-fit: cover
+    const drawVideo = (v: HTMLVideoElement) => {
       if (!canvas || !c2d || cancelled) return
-      const v = videos[currentClipIndex]
-      if (!v || v.readyState < 2) return
-
-      const vt = v.currentTime
-      if (currentClipIndex === lastDrawnClipIndex && Math.abs(vt - lastDrawnTime) < 0.001) return
-
       const cw = canvas.offsetWidth
       const ch = canvas.offsetHeight
-      const vw = v.videoWidth || 1916
+      const vw = v.videoWidth || 1920
       const vh = v.videoHeight || 1080
-
       const scale = Math.max(cw / vw, ch / vh)
       const dw = vw * scale
       const dh = vh * scale
       const dx = (cw - dw) / 2
       const dyRaw = (ch - dh) / 2
+      // Portrait: shift frame up 30% to keep subject visible
       const isPortrait = window.innerWidth < 768 && window.innerHeight > window.innerWidth
       const dy = isPortrait ? Math.min(dyRaw, dyRaw + (dh - ch) * 0.30) : dyRaw
-
       c2d.drawImage(v, dx, dy, dw, dh)
-      lastDrawnClipIndex = currentClipIndex
-      lastDrawnTime = vt
     }
 
-    const seeking = new Array(CLIP_COUNT).fill(false)
-    const pendingTime = new Array<number | null>(CLIP_COUNT).fill(null)
+    // Per-clip seek state — latest desired time wins, seek fires when previous finishes
+    const seekTarget = new Float64Array(CLIP_COUNT).fill(-1)
+    const isSeeking = new Array(CLIP_COUNT).fill(false)
 
-    const applySeek = (clipIdx: number, t: number) => {
-      const v = videos[clipIdx]
-      if (!v) return
-      const clamped = Math.max(0, Math.min(t, CLIP_DURATIONS[clipIdx] - 0.04))
-      if (seeking[clipIdx]) { pendingTime[clipIdx] = clamped; return }
-      if (Math.abs(v.currentTime - clamped) < 0.016) return
-      seeking[clipIdx] = true
-      try { v.currentTime = clamped } catch (_) { seeking[clipIdx] = false }
+    const flushSeek = (i: number) => {
+      if (isSeeking[i] || seekTarget[i] < 0) return
+      const v = videos[i]
+      const t = seekTarget[i]
+      seekTarget[i] = -1
+      if (Math.abs(v.currentTime - t) < 0.008) return
+      isSeeking[i] = true
+      try { v.currentTime = t } catch (_) { isSeeking[i] = false }
+    }
+
+    const requestSeek = (i: number, t: number) => {
+      const clamped = Math.max(0, Math.min(t, CLIP_DURATIONS[i] - 0.02))
+      seekTarget[i] = clamped
+      flushSeek(i)
     }
 
     videos.forEach((v, i) => {
       v.addEventListener('seeked', () => {
-        seeking[i] = false
-        if (pendingTime[i] !== null && !cancelled) {
-          const t = pendingTime[i]!
-          pendingTime[i] = null
-          applySeek(i, t)
-        }
+        isSeeking[i] = false
+        flushSeek(i) // immediately apply any newer target that arrived while we were seeking
       })
     })
 
-    let targetClipIndex = 0
-    let targetLocalTime = 0
+    // Active clip tracking
+    let activeClip = 0
+    let lastDrawnClip = -1
+    let lastDrawnTime = -1
 
     const tick = () => {
       if (cancelled) return
-      currentClipIndex = targetClipIndex
-      applySeek(targetClipIndex, targetLocalTime)
-      drawFrame()
       rafId = requestAnimationFrame(tick)
+
+      const v = videos[activeClip]
+      // readyState 2 = HAVE_CURRENT_DATA — enough to draw
+      if (!v || v.readyState < 2) return
+
+      const vt = v.currentTime
+      // Skip redraw if nothing changed
+      if (activeClip === lastDrawnClip && Math.abs(vt - lastDrawnTime) < 0.004) return
+
+      drawVideo(v)
+      lastDrawnClip = activeClip
+      lastDrawnTime = vt
     }
 
-    const resizeObs = new ResizeObserver(() => { resizeCanvas(); drawFrame() })
+    const resizeObs = new ResizeObserver(() => { resizeCanvas() })
     resizeObs.observe(canvas)
     resizeCanvas()
 
@@ -151,19 +155,22 @@ function DesktopHero({
       gsap.registerPlugin(ScrollTrigger)
       if (cancelled) return
 
+      // Wait for first clip to have enough data to draw frame 0
       await new Promise<void>((resolve) => {
         const v = videos[0]
-        if (v.readyState >= 1) { resolve(); return }
-        v.addEventListener('loadedmetadata', () => resolve(), { once: true })
-        setTimeout(resolve, 3000)
+        if (v.readyState >= 2) { resolve(); return }
+        v.addEventListener('canplay', () => resolve(), { once: true })
+        setTimeout(resolve, 4000)
       })
       if (cancelled) return
 
-      videos[0].play().then(() => { videos[0].pause(); videos[0].currentTime = 0 }).catch(() => {})
-      for (let i = 1; i < CLIP_COUNT; i++) {
-        videos[i].load()
+      // Aggressively buffer all clips: play+pause forces the browser to decode
+      // We stagger them so clip 0 gets priority bandwidth
+      const bufferClip = (i: number) =>
         videos[i].play().then(() => { videos[i].pause(); videos[i].currentTime = 0 }).catch(() => {})
-      }
+
+      await bufferClip(0)
+      for (let i = 1; i < CLIP_COUNT; i++) bufferClip(i)
 
       rafId = requestAnimationFrame(tick)
 
@@ -174,7 +181,8 @@ function DesktopHero({
           trigger: '#hero',
           start: 'top top',
           end: '+=200%',
-          scrub: isMobile ? 0.4 : 0.15,
+          // scrub: true = 1:1 with scroll, no lag — smoothest for frame-accurate scrub
+          scrub: true,
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
@@ -183,8 +191,22 @@ function DesktopHero({
           preventOverlaps: true,
           onUpdate: (self) => {
             const { clipIndex, localTime } = getClipAndTime(self.progress)
-            targetClipIndex = clipIndex
-            targetLocalTime = localTime
+
+            // Switch active clip
+            if (clipIndex !== activeClip) {
+              activeClip = clipIndex
+            }
+
+            // Seek active clip
+            requestSeek(clipIndex, localTime)
+
+            // Pre-warm neighboring clips to their boundary frame so transitions are instant
+            if (clipIndex > 0) {
+              requestSeek(clipIndex - 1, CLIP_DURATIONS[clipIndex - 1] - 0.04)
+            }
+            if (clipIndex < CLIP_COUNT - 1) {
+              requestSeek(clipIndex + 1, 0)
+            }
           },
         })
 
@@ -194,11 +216,11 @@ function DesktopHero({
         )
         gsap.to(ctaRef.current, {
           opacity: 0, y: -24,
-          scrollTrigger: { trigger: '#hero', start: '12% top', end: '40% top', scrub: 0.3 },
+          scrollTrigger: { trigger: '#hero', start: '12% top', end: '40% top', scrub: true },
         })
         gsap.to(scrollIndicatorRef.current, {
           opacity: 0,
-          scrollTrigger: { trigger: '#hero', start: '4% top', end: '18% top', scrub: 0.2 },
+          scrollTrigger: { trigger: '#hero', start: '4% top', end: '18% top', scrub: true },
         })
       })
     }
