@@ -6,7 +6,8 @@ const cspDirectives = [
   "default-src 'self'",
   "font-src 'self' https://fonts.gstatic.com",
   "frame-src https://www.google.com https://maps.google.com https://calendly.com https://maps.neshan.org https://www.openstreetmap.org",
-  "img-src 'self' data: blob: https://calendly.com",
+  "img-src 'self' data: blob: https://calendly.com https://aishlohl6lhgqkkq.public.blob.vercel-storage.com",
+  "media-src 'self' https://aishlohl6lhgqkkq.public.blob.vercel-storage.com",
   // unsafe-eval required by Next.js dev mode (webpack/turbopack HMR); safe to remove in prod
   isDev
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com"

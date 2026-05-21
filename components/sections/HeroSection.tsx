@@ -6,6 +6,8 @@ import { doctor, headline } from '@/lib/content'
 import PhoneIcon from '@/components/ui/PhoneIcon'
 import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
+const BLOB_BASE = 'https://aishlohl6lhgqkkq.public.blob.vercel-storage.com/hero-sequence'
+
 const CLIP_DURATIONS = [6.041667, 4.041667, 6.041667, 6.041667, 6.041667, 6.041667, 4.041667, 6.041667, 5.041667]
 const CLIP_COUNT = CLIP_DURATIONS.length
 const TOTAL_DURATION = CLIP_DURATIONS.reduce((a, b) => a + b, 0)
@@ -48,7 +50,7 @@ function DesktopHero({
 
     const videos: HTMLVideoElement[] = Array.from({ length: CLIP_COUNT }, (_, i) => {
       const v = document.createElement('video')
-      v.src = `/hero-sequence/${i + 1}.mp4`
+      v.src = `${BLOB_BASE}/${i + 1}.mp4`
       v.muted = true
       v.playsInline = true
       v.preload = 'auto'
@@ -217,7 +219,7 @@ function DesktopHero({
     <>
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/hero-sequence/hero-poster.jpg)', zIndex: 0 }}
+        style={{ backgroundImage: `url(${BLOB_BASE}/hero-poster.jpg)`, zIndex: 0 }}
         aria-hidden="true"
       />
       <canvas
