@@ -36,19 +36,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Large backup files
-public/hero-sequence/hero_original_backup.mp4
+# Large media files — never commit, serve from local/CDN
+public/hero-sequence/*.mp4
+public/hero-sequence/*.mov
+hero.mp4
+hero copy.mp4
+public/*.jpeg
+public/*.jpg
+
+# PDFs
 dr-ali-salehi-final-build-journal.pdf
+pentest-report-dr-salehi.pdf
+*.pdf
 
 # Local Netlify folder
 .netlify
-pentest-report-dr-salehi.pdf
-public/hero-sequence/hero_sparse_backup.mp4
-public/hero-sequence/hero_36mb_backup.mp4
-public/hero-sequence/hero_1080p_hq.mp4
-public/hero-sequence/hero_1080p_g15.mp4
-public/hero-sequence/hero_1080p_crf26.mp4
-public/hero-sequence/hero_1080p_g5.mp4
-public/hero-sequence/hero_1080p_g3.mp4
-public/hero-sequence/hero_1080p_backup.mp4
-public/hero-sequence/hero_scrub.mp4

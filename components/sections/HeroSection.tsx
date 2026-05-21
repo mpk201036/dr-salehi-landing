@@ -6,131 +6,55 @@ import { doctor, headline } from '@/lib/content'
 import PhoneIcon from '@/components/ui/PhoneIcon'
 import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
-// Clip durations in seconds (from ffprobe)
-const CLIP_DURATIONS = [6.041667, 4.041667, 6.041667, 6.041667, 6.041667, 6.041667, 4.041667, 6.041667, 5.041667]
-const CLIP_COUNT = CLIP_DURATIONS.length
-const TOTAL_DURATION = CLIP_DURATIONS.reduce((a, b) => a + b, 0)
+const VIDEO_SRC = '/hero-sequence/Full hero.mp4'
+const VIDEO_DURATION = 46.666667
 
-const CLIP_START_FRACTIONS = CLIP_DURATIONS.reduce<number[]>((acc, _, i) => {
-  acc.push(i === 0 ? 0 : acc[i - 1] + CLIP_DURATIONS[i - 1] / TOTAL_DURATION)
-  return acc
-}, [])
-
-function getClipAndTime(globalProgress: number): { clipIndex: number; localTime: number } {
-  const p = Math.max(0, Math.min(1, globalProgress))
-  for (let i = CLIP_COUNT - 1; i >= 0; i--) {
-    if (p >= CLIP_START_FRACTIONS[i]) {
-      const fraction = (p - CLIP_START_FRACTIONS[i]) / (CLIP_DURATIONS[i] / TOTAL_DURATION)
-      const localTime = Math.min(fraction * CLIP_DURATIONS[i], CLIP_DURATIONS[i] - 0.02)
-      return { clipIndex: i, localTime }
-    }
-  }
-  return { clipIndex: 0, localTime: 0 }
-}
-
-// ─── Desktop: canvas scroll-scrub ────────────────────────────────────────────
+// ─── Desktop: GSAP scroll-scrub on video.currentTime ─────────────────────────
 
 function DesktopHero({ ctaRef, scrollIndicatorRef }: {
   ctaRef: React.RefObject<HTMLDivElement | null>
   scrollIndicatorRef: React.RefObject<HTMLDivElement | null>
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     let cancelled = false
     let gsapCtx: { revert: () => void } | null = null
-    let rafId: number | null = null
 
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
 
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const c2d = canvas.getContext('2d', { alpha: false })
-    if (!c2d) return
+    const video = videoRef.current
+    if (!video) return
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    // Preload and seek to first frame
+    video.currentTime = 0
 
-    const syncCanvasSize = () => {
-      if (!canvas || cancelled) return
-      const w = canvas.offsetWidth
-      const h = canvas.offsetHeight
-      if (w === 0 || h === 0) return
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-      c2d.setTransform(dpr, 0, 0, dpr, 0, 0)
+    let targetTime = 0
+    let rafId: number | null = null
+    let isSeeking = false
+    let pendingTime: number | null = null
+
+    const applySeek = (t: number) => {
+      const clamped = Math.max(0, Math.min(t, VIDEO_DURATION - 0.05))
+      if (isSeeking) { pendingTime = clamped; return }
+      if (Math.abs(video.currentTime - clamped) < 0.016) return
+      isSeeking = true
+      try { video.currentTime = clamped } catch (_) { isSeeking = false }
     }
 
-    syncCanvasSize()
-
-    const videos: HTMLVideoElement[] = Array.from({ length: CLIP_COUNT }, (_, i) => {
-      const v = document.createElement('video')
-      v.src = `/hero-sequence/${i + 1}.mp4`
-      v.muted = true
-      v.playsInline = true
-      v.preload = 'auto'
-      return v
+    video.addEventListener('seeked', () => {
+      isSeeking = false
+      if (pendingTime !== null && !cancelled) {
+        const t = pendingTime
+        pendingTime = null
+        applySeek(t)
+      }
     })
-
-    const resizeObs = new ResizeObserver(() => { syncCanvasSize(); drawFrame(true) })
-    resizeObs.observe(canvas)
-
-    let currentClipIndex = 0
-    let lastDrawnKey = ''
-
-    const drawFrame = (force = false) => {
-      if (!canvas || !c2d || cancelled) return
-      const v = videos[currentClipIndex]
-      if (!v || v.readyState < 2) return
-      const key = `${currentClipIndex}:${v.currentTime.toFixed(3)}`
-      if (!force && key === lastDrawnKey) return
-      lastDrawnKey = key
-      const cw = canvas.offsetWidth
-      const ch = canvas.offsetHeight
-      if (cw === 0 || ch === 0) return
-      const vw = v.videoWidth || 1916
-      const vh = v.videoHeight || 1080
-      const scale = Math.max(cw / vw, ch / vh)
-      const dw = vw * scale
-      const dh = vh * scale
-      const dx = (cw - dw) / 2
-      const dy = (ch - dh) / 2
-      c2d.drawImage(v, dx, dy, dw, dh)
-    }
-
-    const seeking = new Array(CLIP_COUNT).fill(false)
-    const pendingTime = new Array<number | null>(CLIP_COUNT).fill(null)
-
-    const applySeek = (clipIdx: number, t: number) => {
-      const v = videos[clipIdx]
-      if (!v) return
-      const clamped = Math.max(0, Math.min(t, CLIP_DURATIONS[clipIdx] - 0.04))
-      if (seeking[clipIdx]) { pendingTime[clipIdx] = clamped; return }
-      if (Math.abs(v.currentTime - clamped) < 0.016) return
-      seeking[clipIdx] = true
-      try { v.currentTime = clamped } catch (_) { seeking[clipIdx] = false }
-    }
-
-    videos.forEach((v, i) => {
-      v.addEventListener('seeked', () => {
-        seeking[i] = false
-        if (pendingTime[i] !== null && !cancelled) {
-          const t = pendingTime[i]!
-          pendingTime[i] = null
-          applySeek(i, t)
-        }
-        if (i === currentClipIndex) drawFrame(true)
-      })
-    })
-
-    let targetClipIndex = 0
-    let targetLocalTime = 0
 
     const tick = () => {
       if (cancelled) return
-      currentClipIndex = targetClipIndex
-      applySeek(targetClipIndex, targetLocalTime)
-      drawFrame()
+      applySeek(targetTime)
       rafId = requestAnimationFrame(tick)
     }
 
@@ -140,22 +64,15 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
       gsap.registerPlugin(ScrollTrigger)
       if (cancelled) return
 
-      videos.forEach((v) => {
-        v.load()
-        v.play().then(() => { v.pause(); v.currentTime = 0 }).catch(() => {})
-      })
-
+      // Wait for video to be ready
       await new Promise<void>((resolve) => {
-        const v = videos[0]
-        if (v.readyState >= 2) { resolve(); return }
-        v.addEventListener('loadeddata', () => resolve(), { once: true })
-        v.addEventListener('canplay', () => resolve(), { once: true })
+        if (video.readyState >= 2) { resolve(); return }
+        video.addEventListener('loadeddata', () => resolve(), { once: true })
+        video.addEventListener('canplay', () => resolve(), { once: true })
         setTimeout(resolve, 5000)
       })
       if (cancelled) return
 
-      syncCanvasSize()
-      drawFrame(true)
       rafId = requestAnimationFrame(tick)
 
       gsapCtx = gsap.context(() => {
@@ -171,9 +88,7 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
           fastScrollEnd: true,
           preventOverlaps: true,
           onUpdate: (self) => {
-            const { clipIndex, localTime } = getClipAndTime(self.progress)
-            targetClipIndex = clipIndex
-            targetLocalTime = localTime
+            targetTime = self.progress * VIDEO_DURATION
           },
         })
 
@@ -198,24 +113,23 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
       cancelled = true
       if (rafId !== null) cancelAnimationFrame(rafId)
       gsapCtx?.revert()
-      resizeObs.disconnect()
-      videos.forEach((v) => { v.src = '' })
       document.documentElement.style.scrollBehavior = ''
     }
   }, [ctaRef, scrollIndicatorRef])
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
+    <video
+      ref={videoRef}
+      src={VIDEO_SRC}
+      muted
+      playsInline
+      preload="auto"
+      className="absolute inset-0 w-full h-full object-cover"
       style={{
         zIndex: 1,
         transform: 'translateZ(0)',
         WebkitTransform: 'translateZ(0)',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        objectPosition: 'center 20%',
       }}
     />
   )
@@ -224,29 +138,7 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
 // ─── Mobile: autoplay looping video ──────────────────────────────────────────
 
 function MobileHero({ ctaRef }: { ctaRef: React.RefObject<HTMLDivElement | null> }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const clipIndexRef = useRef(0)
-
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-
-    const loadClip = (index: number) => {
-      clipIndexRef.current = index
-      video.src = `/hero-sequence/${index + 1}.mp4`
-      video.load()
-      video.play().catch(() => {})
-    }
-
-    const onEnded = () => {
-      const next = (clipIndexRef.current + 1) % CLIP_COUNT
-      loadClip(next)
-    }
-
-    video.addEventListener('ended', onEnded)
-    loadClip(0)
-
-    // Fade in CTA after a short delay
     const timer = setTimeout(() => {
       if (ctaRef.current) {
         ctaRef.current.style.transition = 'opacity 0.8s ease, transform 0.8s ease'
@@ -254,20 +146,16 @@ function MobileHero({ ctaRef }: { ctaRef: React.RefObject<HTMLDivElement | null>
         ctaRef.current.style.transform = 'translateY(0)'
       }
     }, 600)
-
-    return () => {
-      video.removeEventListener('ended', onEnded)
-      video.src = ''
-      clearTimeout(timer)
-    }
+    return () => clearTimeout(timer)
   }, [ctaRef])
 
   return (
     <video
-      ref={videoRef}
+      src={VIDEO_SRC}
       muted
       playsInline
       autoPlay
+      loop
       preload="auto"
       className="absolute inset-0 w-full h-full object-cover"
       style={{
@@ -299,14 +187,7 @@ export default function HeroSection() {
     <section id="hero" className="relative">
       <div className="hero-inner relative w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
 
-        {/* Poster — always visible; video/canvas renders on top once ready */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/hero-sequence/hero-poster.jpg)', zIndex: 0 }}
-          aria-hidden="true"
-        />
-
-        {/* Only render the correct hero variant after mount so we know the real device */}
+        {/* Render correct variant only after mount so we know the real device */}
         {device.mounted && (
           device.isMobile
             ? <MobileHero ctaRef={ctaRef} />
