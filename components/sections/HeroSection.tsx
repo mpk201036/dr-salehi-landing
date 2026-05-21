@@ -6,57 +6,142 @@ import { doctor, headline } from '@/lib/content'
 import PhoneIcon from '@/components/ui/PhoneIcon'
 import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
-const VIDEO_SRC = '/hero-sequence/Full hero.mp4'
-const VIDEO_DURATION = 46.666667
+const CLIP_DURATIONS = [6.041667, 4.041667, 6.041667, 6.041667, 6.041667, 6.041667, 4.041667, 6.041667, 5.041667]
+const CLIP_COUNT = CLIP_DURATIONS.length
+const TOTAL_DURATION = CLIP_DURATIONS.reduce((a, b) => a + b, 0)
 
-// ─── Desktop: GSAP scroll-scrub on video.currentTime ─────────────────────────
+const CLIP_START_FRACTIONS = CLIP_DURATIONS.reduce<number[]>((acc, dur, i) => {
+  acc.push(i === 0 ? 0 : acc[i - 1] + CLIP_DURATIONS[i - 1] / TOTAL_DURATION)
+  return acc
+}, [])
 
-function DesktopHero({ ctaRef, scrollIndicatorRef }: {
+function getClipAndTime(globalProgress: number): { clipIndex: number; localTime: number } {
+  const p = Math.max(0, Math.min(1, globalProgress))
+  for (let i = CLIP_COUNT - 1; i >= 0; i--) {
+    if (p >= CLIP_START_FRACTIONS[i]) {
+      const fraction = (p - CLIP_START_FRACTIONS[i]) / (CLIP_DURATIONS[i] / TOTAL_DURATION)
+      const localTime = Math.min(fraction * CLIP_DURATIONS[i], CLIP_DURATIONS[i] - 0.02)
+      return { clipIndex: i, localTime }
+    }
+  }
+  return { clipIndex: 0, localTime: 0 }
+}
+
+// ─── Desktop: canvas scroll-scrub through all 9 clips ────────────────────────
+
+function DesktopHero({
+  ctaRef,
+  scrollIndicatorRef,
+}: {
   ctaRef: React.RefObject<HTMLDivElement | null>
   scrollIndicatorRef: React.RefObject<HTMLDivElement | null>
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     let cancelled = false
     let gsapCtx: { revert: () => void } | null = null
+    let rafId: number | null = null
 
     window.scrollTo(0, 0)
     document.documentElement.style.scrollBehavior = 'auto'
 
-    const video = videoRef.current
-    if (!video) return
+    const videos: HTMLVideoElement[] = Array.from({ length: CLIP_COUNT }, (_, i) => {
+      const v = document.createElement('video')
+      v.src = `/hero-sequence/${i + 1}.mp4`
+      v.muted = true
+      v.playsInline = true
+      v.preload = 'auto'
+      v.setAttribute('disablepictureinpicture', '')
+      v.setAttribute('x-webkit-airplay', 'deny')
+      return v
+    })
 
-    // Preload and seek to first frame
-    video.currentTime = 0
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const c2d = canvas.getContext('2d', { alpha: false })
+    if (!c2d) return
 
-    let targetTime = 0
-    let rafId: number | null = null
-    let isSeeking = false
-    let pendingTime: number | null = null
-
-    const applySeek = (t: number) => {
-      const clamped = Math.max(0, Math.min(t, VIDEO_DURATION - 0.05))
-      if (isSeeking) { pendingTime = clamped; return }
-      if (Math.abs(video.currentTime - clamped) < 0.016) return
-      isSeeking = true
-      try { video.currentTime = clamped } catch (_) { isSeeking = false }
+    const resizeCanvas = () => {
+      if (!canvas || cancelled) return
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      const w = canvas.offsetWidth
+      const h = canvas.offsetHeight
+      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+        canvas.width = w * dpr
+        canvas.height = h * dpr
+        c2d.scale(dpr, dpr)
+      }
     }
 
-    video.addEventListener('seeked', () => {
-      isSeeking = false
-      if (pendingTime !== null && !cancelled) {
-        const t = pendingTime
-        pendingTime = null
-        applySeek(t)
-      }
+    let currentClipIndex = 0
+    let lastDrawnClipIndex = -1
+    let lastDrawnTime = -1
+
+    const drawFrame = () => {
+      if (!canvas || !c2d || cancelled) return
+      const v = videos[currentClipIndex]
+      if (!v || v.readyState < 2) return
+
+      const vt = v.currentTime
+      if (currentClipIndex === lastDrawnClipIndex && Math.abs(vt - lastDrawnTime) < 0.001) return
+
+      const cw = canvas.offsetWidth
+      const ch = canvas.offsetHeight
+      const vw = v.videoWidth || 1916
+      const vh = v.videoHeight || 1080
+
+      const scale = Math.max(cw / vw, ch / vh)
+      const dw = vw * scale
+      const dh = vh * scale
+      const dx = (cw - dw) / 2
+      const dyRaw = (ch - dh) / 2
+      const isPortrait = window.innerWidth < 768 && window.innerHeight > window.innerWidth
+      const dy = isPortrait ? Math.min(dyRaw, dyRaw + (dh - ch) * 0.30) : dyRaw
+
+      c2d.drawImage(v, dx, dy, dw, dh)
+      lastDrawnClipIndex = currentClipIndex
+      lastDrawnTime = vt
+    }
+
+    const seeking = new Array(CLIP_COUNT).fill(false)
+    const pendingTime = new Array<number | null>(CLIP_COUNT).fill(null)
+
+    const applySeek = (clipIdx: number, t: number) => {
+      const v = videos[clipIdx]
+      if (!v) return
+      const clamped = Math.max(0, Math.min(t, CLIP_DURATIONS[clipIdx] - 0.04))
+      if (seeking[clipIdx]) { pendingTime[clipIdx] = clamped; return }
+      if (Math.abs(v.currentTime - clamped) < 0.016) return
+      seeking[clipIdx] = true
+      try { v.currentTime = clamped } catch (_) { seeking[clipIdx] = false }
+    }
+
+    videos.forEach((v, i) => {
+      v.addEventListener('seeked', () => {
+        seeking[i] = false
+        if (pendingTime[i] !== null && !cancelled) {
+          const t = pendingTime[i]!
+          pendingTime[i] = null
+          applySeek(i, t)
+        }
+      })
     })
+
+    let targetClipIndex = 0
+    let targetLocalTime = 0
 
     const tick = () => {
       if (cancelled) return
-      applySeek(targetTime)
+      currentClipIndex = targetClipIndex
+      applySeek(targetClipIndex, targetLocalTime)
+      drawFrame()
       rafId = requestAnimationFrame(tick)
     }
+
+    const resizeObs = new ResizeObserver(() => { resizeCanvas(); drawFrame() })
+    resizeObs.observe(canvas)
+    resizeCanvas()
 
     const initGSAP = async () => {
       const { gsap } = await import('gsap')
@@ -64,23 +149,30 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
       gsap.registerPlugin(ScrollTrigger)
       if (cancelled) return
 
-      // Wait for video to be ready
       await new Promise<void>((resolve) => {
-        if (video.readyState >= 2) { resolve(); return }
-        video.addEventListener('loadeddata', () => resolve(), { once: true })
-        video.addEventListener('canplay', () => resolve(), { once: true })
-        setTimeout(resolve, 5000)
+        const v = videos[0]
+        if (v.readyState >= 1) { resolve(); return }
+        v.addEventListener('loadedmetadata', () => resolve(), { once: true })
+        setTimeout(resolve, 3000)
       })
       if (cancelled) return
 
+      videos[0].play().then(() => { videos[0].pause(); videos[0].currentTime = 0 }).catch(() => {})
+      for (let i = 1; i < CLIP_COUNT; i++) {
+        videos[i].load()
+        videos[i].play().then(() => { videos[i].pause(); videos[i].currentTime = 0 }).catch(() => {})
+      }
+
       rafId = requestAnimationFrame(tick)
+
+      const isMobile = window.innerWidth < 768
 
       gsapCtx = gsap.context(() => {
         ScrollTrigger.create({
           trigger: '#hero',
           start: 'top top',
           end: '+=200%',
-          scrub: 0.15,
+          scrub: isMobile ? 0.4 : 0.15,
           pin: true,
           pinSpacing: true,
           anticipatePin: 1,
@@ -88,13 +180,15 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
           fastScrollEnd: true,
           preventOverlaps: true,
           onUpdate: (self) => {
-            targetTime = self.progress * VIDEO_DURATION
+            const { clipIndex, localTime } = getClipAndTime(self.progress)
+            targetClipIndex = clipIndex
+            targetLocalTime = localTime
           },
         })
 
         gsap.fromTo(ctaRef.current,
           { opacity: 0, y: 32 },
-          { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out', delay: 0.5 }
+          { opacity: 1, y: 0, duration: isMobile ? 0.8 : 1.0, ease: 'power3.out', delay: isMobile ? 0.3 : 0.5 }
         )
         gsap.to(ctaRef.current, {
           opacity: 0, y: -24,
@@ -113,58 +207,33 @@ function DesktopHero({ ctaRef, scrollIndicatorRef }: {
       cancelled = true
       if (rafId !== null) cancelAnimationFrame(rafId)
       gsapCtx?.revert()
+      resizeObs.disconnect()
+      videos.forEach((v) => { v.src = '' })
       document.documentElement.style.scrollBehavior = ''
     }
   }, [ctaRef, scrollIndicatorRef])
 
   return (
-    <video
-      ref={videoRef}
-      src={VIDEO_SRC}
-      muted
-      playsInline
-      preload="auto"
-      className="absolute inset-0 w-full h-full object-cover"
-      style={{
-        zIndex: 1,
-        transform: 'translateZ(0)',
-        WebkitTransform: 'translateZ(0)',
-        objectPosition: 'center 20%',
-      }}
-    />
-  )
-}
-
-// ─── Mobile: autoplay looping video ──────────────────────────────────────────
-
-function MobileHero({ ctaRef }: { ctaRef: React.RefObject<HTMLDivElement | null> }) {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (ctaRef.current) {
-        ctaRef.current.style.transition = 'opacity 0.8s ease, transform 0.8s ease'
-        ctaRef.current.style.opacity = '1'
-        ctaRef.current.style.transform = 'translateY(0)'
-      }
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [ctaRef])
-
-  return (
-    <video
-      src={VIDEO_SRC}
-      muted
-      playsInline
-      autoPlay
-      loop
-      preload="auto"
-      className="absolute inset-0 w-full h-full object-cover"
-      style={{
-        zIndex: 1,
-        transform: 'translateZ(0)',
-        WebkitTransform: 'translateZ(0)',
-        objectPosition: 'center 20%',
-      }}
-    />
+    <>
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/hero-sequence/hero-poster.jpg)', zIndex: 0 }}
+        aria-hidden="true"
+      />
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          zIndex: 1,
+          transform: 'translateZ(0)',
+          WebkitTransform: 'translateZ(0)',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden' as React.CSSProperties['WebkitBackfaceVisibility'],
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        }}
+      />
+    </>
   )
 }
 
@@ -187,11 +256,8 @@ export default function HeroSection() {
     <section id="hero" className="relative">
       <div className="hero-inner relative w-full" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
 
-        {/* Render correct variant only after mount so we know the real device */}
         {device.mounted && (
-          device.isMobile
-            ? <MobileHero ctaRef={ctaRef} />
-            : <DesktopHero ctaRef={ctaRef} scrollIndicatorRef={scrollIndicatorRef} />
+          <DesktopHero ctaRef={ctaRef} scrollIndicatorRef={scrollIndicatorRef} />
         )}
 
         {/* Edge vignette */}
@@ -244,17 +310,15 @@ export default function HeroSection() {
           </svg>
         </div>
 
-        {/* Scroll indicator — desktop only */}
-        {!device.isMobile && (
-          <div
-            ref={scrollIndicatorRef}
-            className="absolute right-1/2 translate-x-1/2 flex flex-col items-center gap-2 text-silver/40"
-            style={{ willChange: 'opacity', bottom: scrollIndicatorBottom, zIndex: 10 }}
-          >
-            <span className="text-xs tracking-widest font-persian">اسکرول</span>
-            <div className="w-px h-8 bg-gradient-to-b from-silver/40 to-transparent" />
-          </div>
-        )}
+        {/* Scroll indicator */}
+        <div
+          ref={scrollIndicatorRef}
+          className="absolute right-1/2 translate-x-1/2 flex flex-col items-center gap-2 text-silver/40"
+          style={{ willChange: 'opacity', bottom: scrollIndicatorBottom, zIndex: 10 }}
+        >
+          <span className="text-xs tracking-widest font-persian">اسکرول</span>
+          <div className="w-px h-8 bg-gradient-to-b from-silver/40 to-transparent" />
+        </div>
       </div>
     </section>
   )
