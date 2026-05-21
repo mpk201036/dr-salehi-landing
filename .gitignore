@@ -37,7 +37,6 @@ yarn-error.log*
 next-env.d.ts
 
 # Large media files — never commit, serve from local/CDN
-public/hero-sequence/*.mp4
 public/hero-sequence/*.mov
 hero.mp4
 hero copy.mp4
