@@ -8,6 +8,7 @@ import { useDeviceInfo } from '@/lib/hooks/useDeviceInfo'
 
 const BLOB_BASE = 'https://aishlohl6lhgqkkq.public.blob.vercel-storage.com/hero-sequence'
 const VIDEO_SRC = `${BLOB_BASE}/hero-seekable.mp4`
+const POSTER_SRC = `${BLOB_BASE}/hero-poster.jpg`
 const VIDEO_DURATION = 49.375
 
 function HeroVideo({
@@ -30,10 +31,7 @@ function HeroVideo({
     const video = videoRef.current
     if (!video) return
 
-    // Target time driven by GSAP scroll progress
     let targetTime = 0
-
-    // Seek state — latest wins, no queue buildup
     let isSeeking = false
     let pendingTime: number | null = null
 
@@ -51,7 +49,6 @@ function HeroVideo({
       flushSeek()
     })
 
-    // RAF loop: push latest targetTime to video — decouples GSAP from seek rate
     const tick = () => {
       if (cancelled) return
       rafId = requestAnimationFrame(tick)
@@ -68,17 +65,8 @@ function HeroVideo({
       gsap.registerPlugin(ScrollTrigger)
       if (cancelled) return
 
-      // Wait for enough data to seek frame 0
-      await new Promise<void>((resolve) => {
-        if (video.readyState >= 2) { resolve(); return }
-        video.addEventListener('canplay', () => resolve(), { once: true })
-        setTimeout(resolve, 5000)
-      })
-      if (cancelled) return
-
-      // Force browser to buffer the whole file
-      video.play().then(() => { video.pause(); video.currentTime = 0 }).catch(() => {})
-
+      // Start RAF and GSAP immediately — no waiting for canplay.
+      // Poster is visible while video buffers; seeks queue up and fire as data arrives.
       rafId = requestAnimationFrame(tick)
 
       const isMobile = window.innerWidth < 768
@@ -129,6 +117,7 @@ function HeroVideo({
     <video
       ref={videoRef}
       src={VIDEO_SRC}
+      poster={POSTER_SRC}
       muted
       playsInline
       preload="auto"
